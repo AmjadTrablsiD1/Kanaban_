@@ -38,10 +38,24 @@ If it's already running, double-clicking again just reopens the browser tab.
 
 ## Files
 
-| File             | Purpose                                    |
-|------------------|--------------------------------------------|
-| `kanban.py`      | The app — server + auto-save (stdlib only) |
-| `index.html`     | The user interface                         |
-| `board.json`     | Your saved projects & settings (automatic) |
-| `Kanban.command` | Double-click launcher for macOS            |
-| `Kanban.bat`     | Double-click launcher for Windows          |
+| File                  | Purpose                                         |
+|-----------------------|-------------------------------------------------|
+| `kanban.py`           | The app — server + auto-save (stdlib only)      |
+| `index.html`          | The user interface                              |
+| `board.example.json`  | A sample board showing the file format          |
+| `board.json`          | **Your** projects & settings — created on first run, never committed |
+| `Kanban.command`      | Double-click launcher for macOS                 |
+| `Kanban.bat`          | Double-click launcher for Windows               |
+
+## Your data
+
+Everything you type lives in `board.json` next to `kanban.py`. It is **git-ignored on
+purpose** — your tasks, notes and projects are yours and should not end up in a public
+repository. On first run the app creates a fresh board automatically, so a clean clone
+just works.
+
+To move your board to another machine, copy `board.json` across by hand.
+`board.example.json` shows the format if you ever want to write one yourself.
+
+The server binds to `127.0.0.1` only, so the board is reachable just from your own
+machine. There is no login — don't expose the port to a network you don't trust.

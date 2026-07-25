@@ -1,0 +1,12 @@
+# Your personal board — projects, tasks, notes. Stays on your machine only.
+# kanban.py recreates it from defaults on first run, so it is safe to not commit.
+board.json
+board.json.tmp
+
+# Python
+__pycache__/
+*.py[cod]
+
+# macOS
+.DS_Store
+._*

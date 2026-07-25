@@ -1,0 +1,47 @@
+{
+  "settings": {
+    "theme": "dark",
+    "background": "indigo"
+  },
+  "activeProject": "p1",
+  "projects": [
+    {
+      "id": "p1",
+      "name": "My Project",
+      "columns": [
+        {
+          "id": "todo",
+          "title": "To Do",
+          "color": "#f43f5e",
+          "cards": [
+            {
+              "id": "c1",
+              "title": "Try dragging me to Doing",
+              "desc": "Cards can have a description, an accent colour and their own background colour.",
+              "color": "#6366f1"
+            },
+            {
+              "id": "c2",
+              "title": "Click a column title to rename it",
+              "desc": "",
+              "color": "#0ea5e9",
+              "bg": "#bfdbfe"
+            }
+          ]
+        },
+        {
+          "id": "doing",
+          "title": "Doing",
+          "color": "#f59e0b",
+          "cards": []
+        },
+        {
+          "id": "done",
+          "title": "Done",
+          "color": "#10b981",
+          "cards": []
+        }
+      ]
+    }
+  ]
+}
