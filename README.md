@@ -34,6 +34,8 @@ If it's already running, double-clicking again just reopens the browser tab.
 - **Drag & drop** cards between and within columns
 - **Auto-save** — every change (tasks, projects, theme, background) is
   instantly written to `board.json`, so everything is remembered next time
+- **Update notifications** — the board checks GitHub and tells you when a
+  newer version has been pushed, and can update itself with one click
 - Stop the app with `Ctrl+C` (or close the terminal window) — nothing is lost
 
 ## Files
@@ -42,10 +44,46 @@ If it's already running, double-clicking again just reopens the browser tab.
 |-----------------------|-------------------------------------------------|
 | `kanban.py`           | The app — server + auto-save (stdlib only)      |
 | `index.html`          | The user interface                              |
+| `version.json`        | Version number — how other machines detect an update |
 | `board.example.json`  | A sample board showing the file format          |
 | `board.json`          | **Your** projects & settings — created on first run, never committed |
 | `Kanban.command`      | Double-click launcher for macOS                 |
 | `Kanban.bat`          | Double-click launcher for Windows               |
+
+## Using it on another computer
+
+```bash
+git clone https://github.com/AmjadTrablsiD1/Kanaban_.git
+```
+
+Then start it the same way (`Kanban.command`, `Kanban.bat`, or `python3 kanban.py`).
+Clone with **git** rather than downloading the ZIP — a git clone can update itself
+with one click, a ZIP copy can only tell you that a new version exists.
+
+## Staying up to date
+
+The header shows the version you are running, e.g. `v1.4.0`.
+
+- On start, and whenever you click that chip, the app asks GitHub which version
+  is published and compares it with the local `version.json`.
+- If a newer one exists, the chip turns purple (`v1.5.0 available`) and a panel
+  appears with the release notes and an **Update now** button, which runs
+  `git pull --ff-only` for you. Restart the app afterwards to finish.
+- **Later** hides the panel until the next new version.
+- No internet? The check fails silently — nothing is nagged or broken.
+- Your `board.json` is git-ignored, so **updating never touches your tasks**.
+
+### Publishing a new version (do this on the machine you edited)
+
+Bump `"version"` in `version.json` (and write a short `"notes"` line), then:
+
+```bash
+git add -A && git commit -m "Describe the change" && git push
+```
+
+Every other machine will notice the new version the next time it starts.
+If a machine has its own uncommitted edits, `Update now` will refuse rather than
+overwrite them — commit or discard them there first.
 
 ## Your data
 

@@ -292,6 +292,53 @@
   }
   #addColumnBtn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,.06); }
 
+  /* ---------- Version chip & update toast ---------- */
+  #versionTag {
+    font-size: 11.5px; font-weight: 700;
+    color: var(--text-dim);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 11px;
+    cursor: pointer; font-family: inherit;
+    transition: .15s; white-space: nowrap;
+  }
+  #versionTag:hover { color: var(--text); border-color: var(--accent); }
+  #versionTag.has-update {
+    color: #fff;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    border-color: transparent;
+    box-shadow: 0 3px 12px rgba(99,102,241,.45);
+  }
+
+  #updateToast {
+    position: fixed; right: 22px; bottom: 22px;
+    width: min(370px, calc(100vw - 44px));
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 18px 44px rgba(0,0,0,.4);
+    padding: 16px 18px;
+    z-index: 200; display: none;
+    animation: toastIn .25s ease;
+  }
+  #updateToast.open { display: block; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(14px); } }
+  #updateToast .ut-head { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+  #updateToast .ut-badge { font-size: 17px; }
+  #updateToast h4 { font-size: 14.5px; font-weight: 700; }
+  #updateToast p { font-size: 12.8px; color: var(--text-dim); line-height: 1.5; }
+  #updateToast .ut-ver { font-size: 11.8px; color: var(--text-dim); margin-top: 6px; opacity: .85; }
+  #updateToast .ut-actions { display: flex; gap: 8px; margin-top: 14px; }
+  #updateToast .btn { padding: 8px 14px; font-size: 13px; }
+  #updateToast pre {
+    margin-top: 10px; padding: 9px 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 11.5px; color: var(--text-dim);
+    max-height: 130px; overflow: auto;
+    white-space: pre-wrap; word-break: break-word;
+  }
+
   /* ---------- Modal ---------- */
   #overlay {
     position: fixed; inset: 0;
@@ -388,6 +435,7 @@
   <div class="spacer"></div>
   <button class="hdr-btn" id="btnBg" title="Background">🎨</button>
   <button class="hdr-btn" id="btnTheme" title="Dark / light mode">🌙</button>
+  <button id="versionTag" title="Check for updates">v…</button>
   <div id="saveStatus"><span class="dot"></span><span id="saveText">Saved</span></div>
   <div class="popover" id="bgPopover">
     <h3>Background</h3>
@@ -396,6 +444,14 @@
 </header>
 
 <div id="board"></div>
+
+<div id="updateToast">
+  <div class="ut-head"><span class="ut-badge">⬆</span><h4 id="utTitle"></h4></div>
+  <p id="utBody"></p>
+  <div class="ut-ver" id="utVer"></div>
+  <pre id="utLog"></pre>
+  <div class="ut-actions" id="utActions"></div>
+</div>
 
 <div id="overlay">
   <div id="modal">
@@ -960,11 +1016,138 @@ $("#btnDelete").addEventListener("click", () => {
 });
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeModal(); $("#bgPopover").classList.remove("open"); }
+  if (e.key === "Escape") { closeModal(); $("#bgPopover").classList.remove("open"); hideToast(); }
   if (e.key === "Enter" && e.target.id === "inpTitle") $("#btnSave").click();
 });
 
+/* ---------- version & updates ---------- */
+
+let updateInfo = null;
+const ver = (v) => (v ? `v${v}` : "v?");
+
+function showToast({ icon = "⬆", title, body = "", note = "", log = "", actions = [] }) {
+  $("#updateToast").classList.add("open");
+  $("#updateToast .ut-badge").textContent = icon;
+  $("#utTitle").textContent = title;
+  $("#utBody").textContent = body;
+  $("#utBody").style.display = body ? "" : "none";
+  $("#utVer").textContent = note;
+  $("#utVer").style.display = note ? "" : "none";
+  $("#utLog").textContent = log;
+  $("#utLog").style.display = log ? "" : "none";
+  const act = $("#utActions");
+  act.innerHTML = "";
+  for (const a of actions) {
+    const b = document.createElement("button");
+    b.className = "btn " + (a.primary ? "btn-primary" : "btn-ghost");
+    b.textContent = a.label;
+    b.addEventListener("click", a.onClick);
+    act.appendChild(b);
+  }
+}
+function hideToast() { $("#updateToast").classList.remove("open"); }
+
+async function checkUpdate(force) {
+  const tag = $("#versionTag");
+  if (force) tag.textContent = "checking…";
+  try {
+    updateInfo = await (await fetch("/api/update" + (force ? "?force=1" : ""))).json();
+  } catch {
+    tag.textContent = "v?";
+    return;
+  }
+  tag.classList.toggle("has-update", !!updateInfo.updateAvailable);
+  tag.textContent = updateInfo.updateAvailable
+    ? `${ver(updateInfo.latest)} available`
+    : ver(updateInfo.version);
+
+  if (updateInfo.updateAvailable) {
+    // don't nag about a version the user already chose to skip
+    if (force || localStorage.getItem("kanbanSkippedVersion") !== updateInfo.latest) {
+      showUpdateToast();
+    }
+  } else if (force) {
+    showCheckResult();
+  }
+}
+
+function showUpdateToast() {
+  const i = updateInfo;
+  const actions = i.gitCheckout
+    ? [{ label: "Update now", primary: true, onClick: runUpdate }]
+    : [{ label: "Open GitHub", primary: true, onClick: () => window.open(i.repo, "_blank") }];
+  actions.push({ label: "Later", onClick: () => {
+    localStorage.setItem("kanbanSkippedVersion", i.latest);
+    hideToast();
+  }});
+  showToast({
+    title: `Version ${i.latest} is available`,
+    body: i.notes || "",
+    note: `You have ${ver(i.version)}${i.date ? " · released " + i.date : ""}`,
+    actions,
+  });
+}
+
+function showCheckResult() {
+  if (updateInfo.offline) {
+    showToast({
+      icon: "📡",
+      title: "Could not check for updates",
+      body: "GitHub could not be reached. Check your internet connection and try again.",
+      note: `Running ${ver(updateInfo.version)}`,
+      actions: [{ label: "Close", onClick: hideToast }],
+    });
+  } else {
+    showToast({
+      icon: "✅",
+      title: "You're up to date",
+      note: `Running ${ver(updateInfo.version)} — the newest version on GitHub.`,
+      actions: [{ label: "Close", onClick: hideToast }],
+    });
+  }
+}
+
+async function runUpdate() {
+  showToast({ icon: "⏳", title: "Updating…", body: "Downloading the new version from GitHub." });
+  let out;
+  try {
+    out = await (await fetch("/api/update", { method: "POST" })).json();
+  } catch {
+    showToast({ icon: "⚠️", title: "Update failed",
+      body: "Could not reach the app — is it still running?",
+      actions: [{ label: "Close", onClick: hideToast }] });
+    return;
+  }
+  if (out.ok) {
+    localStorage.removeItem("kanbanSkippedVersion");
+    showToast({
+      icon: "✅",
+      title: `Updated to ${ver(out.version)}`,
+      body: "Restart the app to finish — close the terminal window, then start Kanban again.",
+      log: out.output,
+      actions: [
+        { label: "Reload page", primary: true, onClick: () => location.reload() },
+        { label: "Close", onClick: hideToast },
+      ],
+    });
+  } else {
+    showToast({
+      icon: "⚠️",
+      title: "Update could not be applied",
+      body: "Usually this means files here were changed locally. Your tasks in board.json are never touched by an update.",
+      log: out.output,
+      actions: [
+        { label: "Open GitHub", primary: true, onClick: () => window.open(updateInfo.repo, "_blank") },
+        { label: "Close", onClick: hideToast },
+      ],
+    });
+  }
+}
+
+$("#versionTag").addEventListener("click", () => checkUpdate(true));
+
 loadData();
+checkUpdate(false);
 </script>
 </body>
 </html>
