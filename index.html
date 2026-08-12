@@ -339,6 +339,126 @@
     white-space: pre-wrap; word-break: break-word;
   }
 
+  /* ---------- Global Done panel ---------- */
+  #doneOverlay {
+    position: fixed; inset: 0;
+    background: rgba(5,6,10,.55);
+    backdrop-filter: blur(4px);
+    display: none; place-items: center;
+    z-index: 60;
+  }
+  #doneOverlay.open { display: grid; }
+  #donePanel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    width: min(760px, calc(100vw - 40px));
+    max-height: min(86vh, 900px);
+    display: flex; flex-direction: column;
+    box-shadow: 0 24px 70px rgba(0,0,0,.45);
+    animation: modalIn .2s ease;
+    overflow: hidden;
+  }
+  .done-head {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 20px 22px 0;
+  }
+  .done-head h2 { font-size: 17px; font-weight: 700; }
+  .done-head p { font-size: 12.5px; color: var(--text-dim); margin-top: 3px; }
+  .done-scroll { overflow-y: auto; padding: 0 22px 22px; }
+  .done-scroll::-webkit-scrollbar { width: 9px; }
+  .done-scroll::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 5px; }
+
+  .done-hero {
+    text-align: center;
+    padding: 18px 0 20px;
+    margin: 16px 0 6px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(99,102,241,.13), rgba(168,85,247,.10));
+    border: 1px solid var(--border);
+  }
+  .hero-num {
+    font-size: 54px; font-weight: 800; line-height: 1;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero-label {
+    font-size: 12px; font-weight: 700; letter-spacing: 1.1px;
+    text-transform: uppercase; color: var(--text-dim); margin-top: 7px;
+  }
+  .hero-stats {
+    display: flex; justify-content: center; gap: 26px;
+    margin-top: 16px; flex-wrap: wrap;
+  }
+  .hero-stats div { font-size: 12.5px; color: var(--text-dim); }
+  .hero-stats b { display: block; font-size: 18px; color: var(--text); font-weight: 700; }
+
+  .done-project { margin-top: 20px; }
+  .done-project-head {
+    display: flex; align-items: center; gap: 9px;
+    margin-bottom: 9px;
+  }
+  .done-project-head h3 { font-size: 13.5px; font-weight: 700; }
+  .done-project-head .pill {
+    font-size: 11.5px; font-weight: 700;
+    background: var(--surface-3); color: var(--text-dim);
+    border-radius: 20px; padding: 2px 9px;
+  }
+  .done-project-head .bar {
+    flex: 1; height: 5px; border-radius: 3px;
+    background: var(--surface-3); overflow: hidden;
+  }
+  .done-project-head .bar span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, #6366f1, #a855f7);
+  }
+  .done-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; margin-bottom: 7px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--dot, var(--accent));
+    border-radius: 9px;
+  }
+  .done-item .check { color: #10b981; font-size: 13px; flex-shrink: 0; }
+  .done-item .txt { flex: 1; min-width: 0; }
+  .done-item .name { font-size: 13.5px; font-weight: 600; word-wrap: break-word; }
+  .done-item .meta { font-size: 11.5px; color: var(--text-dim); margin-top: 2px; }
+  .done-item .when { font-size: 11.5px; color: var(--text-dim); white-space: nowrap; }
+
+  .done-empty {
+    text-align: center; padding: 30px 16px;
+    color: var(--text-dim); font-size: 13.5px; line-height: 1.6;
+  }
+  .done-empty .big { font-size: 34px; display: block; margin-bottom: 10px; }
+
+  #doneConfig {
+    margin-top: 22px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  #doneConfig summary {
+    font-size: 12.5px; font-weight: 600; color: var(--text-dim);
+    cursor: pointer; list-style: none; user-select: none;
+  }
+  #doneConfig summary::-webkit-details-marker { display: none; }
+  #doneConfig summary::before { content: "⚙  "; }
+  #doneConfig summary:hover { color: var(--text); }
+  .cfg-project { margin-top: 12px; }
+  .cfg-project h4 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .7px;
+    color: var(--text-dim); margin-bottom: 6px;
+  }
+  .cfg-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 5px 8px; border-radius: 7px;
+    font-size: 13px; cursor: pointer;
+  }
+  .cfg-row:hover { background: var(--surface-3); }
+  .cfg-row input { accent-color: var(--accent); cursor: pointer; }
+  .cfg-row .n { font-size: 11.5px; color: var(--text-dim); margin-left: auto; }
+
   /* ---------- Modal ---------- */
   #overlay {
     position: fixed; inset: 0;
@@ -433,6 +553,7 @@
   <button class="hdr-btn" id="btnDeleteProject" title="Delete project">🗑</button>
   <span class="stats" id="stats"></span>
   <div class="spacer"></div>
+  <button class="hdr-btn" id="btnDone" title="Everything you've completed">🏆</button>
   <button class="hdr-btn" id="btnBg" title="Background">🎨</button>
   <button class="hdr-btn" id="btnTheme" title="Dark / light mode">🌙</button>
   <button id="versionTag" title="Check for updates">v…</button>
@@ -444,6 +565,30 @@
 </header>
 
 <div id="board"></div>
+
+<div id="doneOverlay">
+  <div id="donePanel">
+    <div class="done-head">
+      <div style="flex:1">
+        <h2>🏆 Everything you've completed</h2>
+        <p id="doneSub">across all your projects</p>
+      </div>
+      <button class="icon-btn" id="btnCloseDone" title="Close">✕</button>
+    </div>
+    <div class="done-scroll">
+      <div class="done-hero">
+        <div class="hero-num" id="doneTotal">0</div>
+        <div class="hero-label">tasks completed</div>
+        <div class="hero-stats" id="doneStats"></div>
+      </div>
+      <div id="doneList"></div>
+      <details id="doneConfig">
+        <summary>Which columns count as “Done”?</summary>
+        <div id="doneConfigBody"></div>
+      </details>
+    </div>
+  </div>
+</div>
 
 <div id="updateToast">
   <div class="ut-head"><span class="ut-badge">⬆</span><h4 id="utTitle"></h4></div>
@@ -542,6 +687,14 @@ function textColorFor(hex) {
 
 function project() {
   return data.projects.find((p) => p.id === data.activeProject) || data.projects[0];
+}
+
+// A column counts as "done" if you ticked it, otherwise if it is named like one.
+const DONE_NAMES = ["done", "completed", "complete", "finished",
+                    "fertig", "erledigt", "abgeschlossen"];
+function isDoneColumn(col) {
+  if (typeof col.done === "boolean") return col.done;
+  return DONE_NAMES.includes((col.title || "").trim().toLowerCase());
 }
 function defaultColumns() {
   return [
@@ -802,9 +955,10 @@ function render() {
   boardEl.appendChild(addCol);
 
   const total = board.columns.reduce((n, c) => n + c.cards.length, 0);
-  const doneCol = board.columns.find((c) => c.title.toLowerCase() === "done");
+  const doneCols = board.columns.filter(isDoneColumn);
+  const doneCount = doneCols.reduce((n, c) => n + c.cards.length, 0);
   $("#stats").textContent = total
-    ? `${total} task${total === 1 ? "" : "s"}${doneCol ? ` · ${doneCol.cards.length} done` : ""}`
+    ? `${total} task${total === 1 ? "" : "s"}${doneCols.length ? ` · ${doneCount} done` : ""}`
     : "";
 }
 
@@ -889,6 +1043,13 @@ function attachDropZone(cardsEl, col) {
 
     if (fromCol.id === col.id && cardIdx < index) index--;
     col.cards.splice(Math.min(index, col.cards.length), 0, card);
+
+    // remember when something was actually finished (or un-finished)
+    if (isDoneColumn(col)) {
+      if (!card.doneAt) card.doneAt = new Date().toISOString();
+    } else {
+      delete card.doneAt;
+    }
 
     drag = null;
     clearDropHints();
@@ -1001,6 +1162,7 @@ $("#btnSave").addEventListener("click", () => {
   } else {
     const card = { id: uid(), title, desc, color: selectedColor };
     if (selectedBg) card.bg = selectedBg;
+    if (isDoneColumn(col)) card.doneAt = new Date().toISOString();
     col.cards.push(card);
   }
   closeModal();
@@ -1016,8 +1178,128 @@ $("#btnDelete").addEventListener("click", () => {
 });
 
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") { closeModal(); $("#bgPopover").classList.remove("open"); hideToast(); }
+  if (e.key === "Escape") {
+    closeModal(); closeDonePanel(); hideToast();
+    $("#bgPopover").classList.remove("open");
+  }
   if (e.key === "Enter" && e.target.id === "inpTitle") $("#btnSave").click();
+});
+
+/* ---------- global Done panel ---------- */
+
+function collectDone() {
+  return data.projects.map((p) => {
+    const items = [];
+    for (const col of p.columns) {
+      if (!isDoneColumn(col)) continue;
+      for (const card of col.cards) items.push({ card, colTitle: col.title });
+    }
+    // newest first; cards finished before dates were tracked sink to the bottom
+    items.sort((a, b) => (b.card.doneAt || "").localeCompare(a.card.doneAt || ""));
+    return { p, items, total: p.columns.reduce((n, c) => n + c.cards.length, 0) };
+  });
+}
+
+function fmtWhen(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (days <= 0) return "today";
+  if (days === 1) return "yesterday";
+  if (days < 7) return `${days} days ago`;
+  return d.toLocaleDateString();
+}
+
+function renderDonePanel() {
+  const groups = collectDone();
+  const done = groups.reduce((n, g) => n + g.items.length, 0);
+  const everything = groups.reduce((n, g) => n + g.total, 0);
+
+  $("#doneTotal").textContent = done;
+  $("#doneSub").textContent =
+    `across ${data.projects.length} project${data.projects.length === 1 ? "" : "s"}`;
+
+  const now = Date.now();
+  const within = (days) => groups.reduce((n, g) => n + g.items.filter((i) =>
+    i.card.doneAt && now - new Date(i.card.doneAt).getTime() < days * 86400000).length, 0);
+  const pct = everything ? Math.round((done / everything) * 100) : 0;
+  $("#doneStats").innerHTML =
+    `<div><b>${within(7)}</b>this week</div>` +
+    `<div><b>${within(30)}</b>this month</div>` +
+    `<div><b>${pct}%</b>of all tasks</div>`;
+
+  const list = $("#doneList");
+  list.innerHTML = "";
+  if (!done) {
+    list.innerHTML = `<div class="done-empty"><span class="big">🌱</span>
+      Nothing completed yet.<br>Move a task into a Done column and it shows up here.</div>`;
+  }
+  for (const g of groups) {
+    if (!g.items.length) continue;
+    const sec = document.createElement("div");
+    sec.className = "done-project";
+    const share = g.total ? Math.round((g.items.length / g.total) * 100) : 0;
+    sec.innerHTML = `
+      <div class="done-project-head">
+        <h3>${esc(g.p.name)}</h3>
+        <span class="pill">${g.items.length} / ${g.total}</span>
+        <div class="bar"><span style="width:${share}%"></span></div>
+      </div>`;
+    for (const it of g.items) {
+      const row = document.createElement("div");
+      row.className = "done-item";
+      row.style.setProperty("--dot", it.card.color || "#10b981");
+      row.innerHTML = `<span class="check">✔</span>
+        <div class="txt">
+          <div class="name">${esc(it.card.title)}</div>
+          <div class="meta">${esc(it.colTitle)}</div>
+        </div>
+        <span class="when">${esc(fmtWhen(it.card.doneAt))}</span>`;
+      sec.appendChild(row);
+    }
+    list.appendChild(sec);
+  }
+
+  const cfg = $("#doneConfigBody");
+  cfg.innerHTML = "";
+  for (const p of data.projects) {
+    const box = document.createElement("div");
+    box.className = "cfg-project";
+    const h = document.createElement("h4");
+    h.textContent = p.name;
+    box.appendChild(h);
+    for (const col of p.columns) {
+      const row = document.createElement("label");
+      row.className = "cfg-row";
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.checked = isDoneColumn(col);
+      cb.addEventListener("change", () => {
+        col.done = cb.checked;   // explicit choice overrides name matching
+        scheduleSave();
+        renderDonePanel();
+        render();
+      });
+      const name = document.createElement("span");
+      name.textContent = col.title;
+      const n = document.createElement("span");
+      n.className = "n";
+      n.textContent = `${col.cards.length} task${col.cards.length === 1 ? "" : "s"}`;
+      row.append(cb, name, n);
+      box.appendChild(row);
+    }
+    cfg.appendChild(box);
+  }
+}
+
+function openDonePanel() { renderDonePanel(); $("#doneOverlay").classList.add("open"); }
+function closeDonePanel() { $("#doneOverlay").classList.remove("open"); }
+
+$("#btnDone").addEventListener("click", openDonePanel);
+$("#btnCloseDone").addEventListener("click", closeDonePanel);
+$("#doneOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "doneOverlay") closeDonePanel();
 });
 
 /* ---------- version & updates ---------- */

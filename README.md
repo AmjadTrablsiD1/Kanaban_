@@ -32,6 +32,9 @@ If it's already running, double-clicking again just reopens the browser tab.
 - **Backgrounds** — the 🎨 button offers Indigo Night, Ocean, Sunset,
   Forest, Violet, and Plain
 - **Drag & drop** cards between and within columns
+- **🏆 Global Done view** — one panel showing everything you have finished
+  in *every* project, with a total counter, this-week / this-month progress,
+  a per-project bar, and the date each task was completed
 - **Auto-save** — every change (tasks, projects, theme, background) is
   instantly written to `board.json`, so everything is remembered next time
 - **Update notifications** — the board checks GitHub and tells you when a
@@ -49,6 +52,26 @@ If it's already running, double-clicking again just reopens the browser tab.
 | `board.json`          | **Your** projects & settings — created on first run, never committed |
 | `Kanban.command`      | Double-click launcher for macOS                 |
 | `Kanban.bat`          | Double-click launcher for Windows               |
+
+## Everything you've completed (🏆)
+
+The 🏆 button in the header opens a single view of every finished task across
+**all** your projects — a big total, how many you finished this week and this
+month, what share of all your tasks that is, and a per-project progress bar.
+
+Which columns count as finished:
+
+- Columns named **Done** (also *Completed*, *Finished*, *Fertig*, *Erledigt*,
+  *Abgeschlossen*) count automatically.
+- Anything else — an *Accepted* or *Shipped* column, say — can be ticked under
+  **“Which columns count as Done?”** at the bottom of the panel. Your choice is
+  saved and always wins over the automatic naming.
+
+Completion **dates** are recorded from the moment you install this version: drag
+a card into a Done column and it is stamped with that date ("today", "3 days
+ago", …). Tasks you finished before then still count in the total, they just
+have no date. Dragging a card back out clears its date again, so the numbers
+stay honest.
 
 ## Using it on another computer
 

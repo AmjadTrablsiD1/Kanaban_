@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
-  "date": "2026-07-26",
-  "notes": "Update notifications: the board now tells you when a newer version is on GitHub, and can update itself with one click."
+  "version": "1.5.0",
+  "date": "2026-08-12",
+  "notes": "New 🏆 panel: everything you have completed across all projects, with a total counter, weekly/monthly progress and completion dates."
 }
