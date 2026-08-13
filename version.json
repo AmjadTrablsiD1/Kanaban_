@@ -1,5 +1,5 @@
 {
-  "version": "1.5.0",
-  "date": "2026-08-12",
-  "notes": "New 🏆 panel: everything you have completed across all projects, with a total counter, weekly/monthly progress and completion dates."
+  "version": "1.6.0",
+  "date": "2026-08-13",
+  "notes": "One-click updates that really update: the app now downloads the new version itself and restarts automatically — git is no longer needed."
 }

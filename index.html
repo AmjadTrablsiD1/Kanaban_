@@ -1355,9 +1355,7 @@ async function checkUpdate(force) {
 
 function showUpdateToast() {
   const i = updateInfo;
-  const actions = i.gitCheckout
-    ? [{ label: "Update now", primary: true, onClick: runUpdate }]
-    : [{ label: "Open GitHub", primary: true, onClick: () => window.open(i.repo, "_blank") }];
+  const actions = [{ label: "Update now", primary: true, onClick: runUpdate }];
   actions.push({ label: "Later", onClick: () => {
     localStorage.setItem("kanbanSkippedVersion", i.latest);
     hideToast();
@@ -1389,6 +1387,18 @@ function showCheckResult() {
   }
 }
 
+async function waitForServer(timeoutMs = 40000) {
+  const started = Date.now();
+  await new Promise((r) => setTimeout(r, 1500)); // give it time to go down first
+  while (Date.now() - started < timeoutMs) {
+    try {
+      if ((await fetch("/api/board", { cache: "no-store" })).ok) return true;
+    } catch { /* still restarting */ }
+    await new Promise((r) => setTimeout(r, 700));
+  }
+  return false;
+}
+
 async function runUpdate() {
   showToast({ icon: "⏳", title: "Updating…", body: "Downloading the new version from GitHub." });
   let out;
@@ -1402,6 +1412,23 @@ async function runUpdate() {
   }
   if (out.ok) {
     localStorage.removeItem("kanbanSkippedVersion");
+    if (out.restarting) {
+      showToast({
+        icon: "♻️",
+        title: "Installing and restarting…",
+        body: "The app is restarting itself. This page reloads on its own in a few seconds.",
+        log: out.output,
+      });
+      if (await waitForServer()) { location.reload(); return; }
+      showToast({
+        icon: "⚠️",
+        title: "Installed, but the restart is taking long",
+        body: "The new version is on disk. Start Kanban again to finish.",
+        log: out.output,
+        actions: [{ label: "Try reloading", primary: true, onClick: () => location.reload() }],
+      });
+      return;
+    }
     showToast({
       icon: "✅",
       title: `Updated to ${ver(out.version)}`,
@@ -1416,7 +1443,7 @@ async function runUpdate() {
     showToast({
       icon: "⚠️",
       title: "Update could not be applied",
-      body: "Usually this means files here were changed locally. Your tasks in board.json are never touched by an update.",
+      body: "The new version could not be downloaded or written to disk. Your tasks are safe — an update never touches board.json.",
       log: out.output,
       actions: [
         { label: "Open GitHub", primary: true, onClick: () => window.open(updateInfo.repo, "_blank") },

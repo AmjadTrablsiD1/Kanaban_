@@ -9,21 +9,26 @@ The board is saved to board.json next to this file, so all tasks are
 remembered the next time you start the app.
 """
 
+import filecmp
+import io
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import urllib.request
 import webbrowser
+import zipfile
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOARD_FILE = os.path.join(HERE, "board.json")
 INDEX_FILE = os.path.join(HERE, "index.html")
 VERSION_FILE = os.path.join(HERE, "version.json")
-PORT = 8433
+PORT = int(os.environ.get("KANBAN_PORT", "8433"))  # set KANBAN_PORT to use another port
 
 # Used only if version.json / the git remote are missing (e.g. a partial copy).
 FALLBACK_VERSION = "1.4.0"
@@ -174,17 +179,95 @@ def check_update(force=False):
     return info
 
 
+# Your data and old backups are never replaced by an update.
+NEVER_REPLACE = {"board.json", "board.json.tmp", ".update-backup", ".git"}
+
+
+def install_files(src, backup_dir):
+    """Copy the downloaded files over the app folder. Returns what changed."""
+    changed = []
+    for root, dirs, files in os.walk(src):
+        dirs[:] = [d for d in dirs if d not in NEVER_REPLACE]
+        rel_dir = os.path.relpath(root, src)
+        target_dir = HERE if rel_dir == "." else os.path.join(HERE, rel_dir)
+        for name in files:
+            if name in NEVER_REPLACE:
+                continue
+            new_file = os.path.join(root, name)
+            rel_name = name if rel_dir == "." else os.path.join(rel_dir, name)
+            old_file = os.path.join(target_dir, name)
+
+            if os.path.exists(old_file) and filecmp.cmp(new_file, old_file, shallow=False):
+                continue  # identical, nothing to do
+
+            os.makedirs(target_dir, exist_ok=True)
+            if os.path.exists(old_file):  # keep whatever we overwrite
+                keep = os.path.join(backup_dir, rel_name)
+                os.makedirs(os.path.dirname(keep), exist_ok=True)
+                shutil.copy2(old_file, keep)
+            shutil.copy2(new_file, old_file)
+            # zip files carry no permissions, so make the launchers runnable again
+            if name.endswith((".command", ".sh")):
+                os.chmod(old_file, 0o755)
+            changed.append(rel_name)
+    return changed
+
+
+def download_update():
+    """Install the newest version straight from GitHub — no git required."""
+    slug, branch = repo_slug(), current_branch()
+    url = f"https://codeload.github.com/{slug}/zip/refs/heads/{branch}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "kanban-board"})
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            payload = resp.read()
+    except OSError as err:
+        return False, f"Could not download the update from GitHub.\n{err}"
+
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    backup_dir = os.path.join(HERE, ".update-backup", stamp)
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                archive.extractall(tmp)
+            # GitHub wraps everything in a single "repo-branch" folder
+            roots = [os.path.join(tmp, n) for n in os.listdir(tmp)]
+            roots = [r for r in roots if os.path.isdir(r)]
+            if not roots:
+                return False, "The download from GitHub was empty."
+            changed = install_files(roots[0], backup_dir)
+    except (OSError, ValueError, zipfile.BadZipFile) as err:
+        return False, f"Could not unpack the update.\n{err}"
+
+    if not changed:
+        return True, "Already up to date."
+    return True, ("Installed: " + ", ".join(sorted(changed)) +
+                  f"\nThe previous files are kept in .update-backup/{stamp}")
+
+
 def apply_update():
-    """Pull the new version. --ff-only so local work is never merged over."""
-    if not is_git_checkout():
-        return False, ("This copy was not installed with git, so it cannot update "
-                       "itself. Download the latest version from GitHub instead.")
-    ok, out = git("pull", "--ff-only", timeout=90)
+    """Update in place. Uses git when this is a clone, downloads otherwise."""
+    if is_git_checkout():
+        ok, out = git("pull", "--ff-only", timeout=90)
+        if not ok:  # no git installed, or local edits block the pull
+            ok, download_out = download_update()
+            out = download_out if ok else f"{out}\n\n{download_out}"
+    else:
+        ok, out = download_update()
+
     if ok:
         with _update_lock:  # force the next check to re-read version.json
             _update_cache["at"] = 0.0
             _update_cache["data"] = None
     return ok, out
+
+
+def restart_app():
+    """Re-launch so the code that just landed is the code that is running."""
+    def run():
+        time.sleep(1.0)  # let the browser receive the response first
+        os.execv(sys.executable, [sys.executable, os.path.abspath(__file__), "--restarted"])
+    threading.Thread(target=run, daemon=True).start()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -229,7 +312,10 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": ok,
                 "output": out,
                 "version": local_version().get("version", FALLBACK_VERSION),
+                "restarting": ok,
             }))
+            if ok:
+                restart_app()
         else:
             self._send(404, '{"error": "not found"}')
 
@@ -245,22 +331,36 @@ def announce_update():
 
 
 def main():
+    restarted = "--restarted" in sys.argv
     if not os.path.exists(BOARD_FILE):
         save_board(DEFAULT_DATA)
 
     url = f"http://localhost:{PORT}"
-    try:
-        server = HTTPServer(("127.0.0.1", PORT), Handler)
-    except OSError:
-        # already running (e.g. launcher double-clicked twice) -> just open it
-        print(f"  Kanban board is already running — opening {url}")
-        webbrowser.open(url)
-        return
-    print(f"  Kanban board v{local_version().get('version', FALLBACK_VERSION)} running at {url}")
+    # after an update the old process is only just letting go of the port
+    deadline = time.time() + (20 if restarted else 0)
+    while True:
+        try:
+            server = HTTPServer(("127.0.0.1", PORT), Handler)
+            break
+        except OSError:
+            if time.time() < deadline:
+                time.sleep(0.3)
+                continue
+            # already running (e.g. launcher double-clicked twice) -> just open it
+            print(f"  Kanban board is already running — opening {url}")
+            webbrowser.open(url)
+            return
+
+    version = local_version().get("version", FALLBACK_VERSION)
+    if restarted:
+        print(f"  Updated — Kanban board v{version} restarted at {url}")
+    else:
+        print(f"  Kanban board v{version} running at {url}")
     print(f"  Tasks are saved in {BOARD_FILE}")
     print("  Press Ctrl+C to stop.")
 
-    threading.Timer(0.5, lambda: webbrowser.open(url)).start()
+    if not restarted:  # the browser tab is already open after an update
+        threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     threading.Thread(target=announce_update, daemon=True).start()
     try:
         server.serve_forever()

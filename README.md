@@ -80,8 +80,10 @@ git clone https://github.com/AmjadTrablsiD1/Kanaban_.git
 ```
 
 Then start it the same way (`Kanban.command`, `Kanban.bat`, or `python3 kanban.py`).
-Clone with **git** rather than downloading the ZIP — a git clone can update itself
-with one click, a ZIP copy can only tell you that a new version exists.
+Downloading the ZIP from GitHub works just as well — either way the app can
+update itself with one click.
+
+Running on a busy machine? `KANBAN_PORT=9000 python3 kanban.py` uses another port.
 
 ## Staying up to date
 
@@ -89,12 +91,16 @@ The header shows the version you are running, e.g. `v1.4.0`.
 
 - On start, and whenever you click that chip, the app asks GitHub which version
   is published and compares it with the local `version.json`.
-- If a newer one exists, the chip turns purple (`v1.5.0 available`) and a panel
-  appears with the release notes and an **Update now** button, which runs
-  `git pull --ff-only` for you. Restart the app afterwards to finish.
+- If a newer one exists, the chip turns purple (`v1.6.0 available`) and a panel
+  appears with the release notes and an **Update now** button.
+- **Update now** installs the new version by itself, restarts the app, and
+  reloads the page — no terminal, no git, nothing to click afterwards.
+  In a git clone it uses `git pull`; anywhere else it downloads the files
+  straight from GitHub, so a ZIP copy or a PC without git updates just the same.
+- Whatever gets overwritten is copied to `.update-backup/<date>/` first.
 - **Later** hides the panel until the next new version.
 - No internet? The check fails silently — nothing is nagged or broken.
-- Your `board.json` is git-ignored, so **updating never touches your tasks**.
+- Your `board.json` is never replaced, so **updating never touches your tasks**.
 
 ### Publishing a new version (do this on the machine you edited)
 
@@ -104,9 +110,8 @@ Bump `"version"` in `version.json` (and write a short `"notes"` line), then:
 git add -A && git commit -m "Describe the change" && git push
 ```
 
-Every other machine will notice the new version the next time it starts.
-If a machine has its own uncommitted edits, `Update now` will refuse rather than
-overwrite them — commit or discard them there first.
+Every other machine will notice the new version the next time it starts, and can
+install it with the **Update now** button.
 
 ## Your data
 
