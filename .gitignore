@@ -3,6 +3,13 @@
 board.json
 board.json.tmp
 
+# Your wallpaper and the safety copies an update leaves behind.
+wallpaper.jpg
+wallpaper.png
+wallpaper.webp
+wallpaper.gif
+.update-backup/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -17,8 +17,12 @@ If it's already running, double-clicking again just reopens the browser tab.
 
 ## Features
 
-- **Multiple projects** — the dropdown in the header switches boards;
+- **Project tabs** — one click per board, right under the header.
+  `Alt`+`1`…`9` jumps straight to a project, `Alt`+`←`/`→` steps through them.
   ＋ creates a project, ✎ renames it, 🗑 deletes it
+- **Wallpaper** — 🎨 → *Choose an image…* puts your own picture behind the
+  board, with **dim** and **blur** sliders. Panels turn to frosted glass over it.
+  *Remove wallpaper* goes back to the gradients
 - **To Do / Doing / Done** columns — add more with ＋ Add column,
   click a title to rename
 - **Column colors** — the round dot picks the accent color (top bar,
@@ -31,7 +35,8 @@ If it's already running, double-clicking again just reopens the browser tab.
 - **Dark / light mode** — the 🌙/☀️ button in the header
 - **Backgrounds** — the 🎨 button offers Indigo Night, Ocean, Sunset,
   Forest, Violet, and Plain
-- **Drag & drop** cards between and within columns
+- **Drag & drop** cards between and within columns — the drop line follows the
+  cursor, the target list lifts, and the card glows where it lands
 - **🏆 Global Done view** — one panel showing everything you have finished
   in *every* project, with a total counter, this-week / this-month progress,
   a per-project bar, and the date each task was completed
@@ -50,6 +55,7 @@ If it's already running, double-clicking again just reopens the browser tab.
 | `version.json`        | Version number — how other machines detect an update |
 | `board.example.json`  | A sample board showing the file format          |
 | `board.json`          | **Your** projects & settings — created on first run, never committed |
+| `wallpaper.*`         | Your wallpaper image — stays on your machine        |
 | `Kanban.command`      | Double-click launcher for macOS                 |
 | `Kanban.bat`          | Double-click launcher for Windows               |
 

@@ -30,6 +30,13 @@ INDEX_FILE = os.path.join(HERE, "index.html")
 VERSION_FILE = os.path.join(HERE, "version.json")
 PORT = int(os.environ.get("KANBAN_PORT", "8433"))  # set KANBAN_PORT to use another port
 
+# Your own wallpaper image, kept next to the app (never committed, never updated over).
+WALLPAPER_TYPES = {
+    "image/jpeg": ".jpg", "image/png": ".png",
+    "image/webp": ".webp", "image/gif": ".gif",
+}
+MAX_WALLPAPER_BYTES = 12 * 1024 * 1024
+
 # Used only if version.json / the git remote are missing (e.g. a partial copy).
 FALLBACK_VERSION = "1.4.0"
 FALLBACK_REPO = "AmjadTrablsiD1/Kanaban_"
@@ -70,6 +77,32 @@ def load_board():
         except (json.JSONDecodeError, OSError):
             pass  # corrupted file -> fall back to default, don't crash
     return DEFAULT_DATA
+
+
+def wallpaper_path():
+    """The wallpaper the user uploaded, whatever format it was."""
+    for ext in WALLPAPER_TYPES.values():
+        candidate = os.path.join(HERE, "wallpaper" + ext)
+        if os.path.exists(candidate):
+            return candidate
+    return None
+
+
+def save_wallpaper(content_type, payload):
+    ext = WALLPAPER_TYPES.get(content_type)
+    if not ext:
+        return False, "That file type is not supported — use JPG, PNG, WEBP or GIF."
+    if len(payload) > MAX_WALLPAPER_BYTES:
+        return False, "That image is larger than 12 MB."
+    old = wallpaper_path()  # only one wallpaper at a time
+    if old:
+        try:
+            os.remove(old)
+        except OSError:
+            pass
+    with open(os.path.join(HERE, "wallpaper" + ext), "wb") as f:
+        f.write(payload)
+    return True, "saved"
 
 
 def save_board(data):
@@ -180,7 +213,8 @@ def check_update(force=False):
 
 
 # Your data and old backups are never replaced by an update.
-NEVER_REPLACE = {"board.json", "board.json.tmp", ".update-backup", ".git"}
+NEVER_REPLACE = {"board.json", "board.json.tmp", ".update-backup", ".git",
+                 "wallpaper.jpg", "wallpaper.png", "wallpaper.webp", "wallpaper.gif"}
 
 
 def install_files(src, backup_dir):
@@ -292,6 +326,15 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, json.dumps(load_board()))
         elif path == "/api/update":
             self._send(200, json.dumps(check_update(force="force=1" in query)))
+        elif path == "/wallpaper":
+            found = wallpaper_path()
+            if not found:
+                self._send(404, '{"error": "no wallpaper"}')
+                return
+            with open(found, "rb") as f:
+                payload = f.read()
+            kind = next(k for k, v in WALLPAPER_TYPES.items() if found.endswith(v))
+            self._send(200, payload, kind)
         else:
             self._send(404, '{"error": "not found"}')
 
@@ -306,6 +349,14 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, '{"ok": true}')
             except (ValueError, json.JSONDecodeError):
                 self._send(400, '{"error": "invalid board data"}')
+        elif self.path == "/api/wallpaper":
+            length = int(self.headers.get("Content-Length", 0))
+            if length > MAX_WALLPAPER_BYTES:
+                self._send(400, '{"error": "That image is larger than 12 MB."}')
+                return
+            ok, message = save_wallpaper(self.headers.get("Content-Type", ""),
+                                         self.rfile.read(length))
+            self._send(200 if ok else 400, json.dumps({"ok": ok, "error": message}))
         elif self.path == "/api/update":
             ok, out = apply_update()
             self._send(200 if ok else 500, json.dumps({

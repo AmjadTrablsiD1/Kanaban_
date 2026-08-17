@@ -20,6 +20,8 @@
     --card-shadow: 0 6px 18px rgba(0,0,0,.4);
     --header-bg: rgba(15,17,23,.7);
     --chip-ring: #fff;
+    --glass: rgba(24,27,35,.68);
+    --glass-strong: rgba(15,17,23,.6);
   }
   :root[data-theme="light"] {
     --bg: #eef1f6;
@@ -33,6 +35,8 @@
     --card-shadow: 0 6px 18px rgba(30,40,70,.14);
     --header-bg: rgba(255,255,255,.72);
     --chip-ring: #1c2030;
+    --glass: rgba(255,255,255,.74);
+    --glass-strong: rgba(255,255,255,.66);
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
@@ -43,6 +47,36 @@
     display: flex; flex-direction: column;
     overflow: hidden;
     transition: background .35s, color .2s;
+  }
+
+  /* ---------- Wallpaper layers ---------- */
+  #wallpaper {
+    position: fixed; inset: 0; z-index: -2;
+    background-size: cover; background-position: center;
+    background-repeat: no-repeat;
+    display: none;
+    transform: scale(1.04); /* hides blur edges */
+    transition: filter .25s ease;
+  }
+  #wallpaperTint {
+    position: fixed; inset: 0; z-index: -1;
+    display: none; pointer-events: none;
+    transition: background .25s ease;
+  }
+  :root.has-wallpaper #wallpaper,
+  :root.has-wallpaper #wallpaperTint { display: block; }
+
+  /* over a wallpaper, panels turn to frosted glass */
+  :root.has-wallpaper header { background: var(--glass-strong); }
+  :root.has-wallpaper .column:not(.tinted) {
+    background: var(--glass);
+    backdrop-filter: blur(16px) saturate(1.3);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  }
+  :root.has-wallpaper .card:not(.tinted) {
+    background: var(--glass);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
   }
 
   /* ---------- Header ---------- */
@@ -67,19 +101,51 @@
   }
   h1 { font-size: 18px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
 
-  #projectSel {
-    background: var(--surface-2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    border-radius: 9px;
-    padding: 7px 10px;
-    font-size: 13.5px; font-weight: 600;
-    font-family: inherit;
-    cursor: pointer;
-    outline: none;
-    max-width: 220px;
+  /* ---------- Project tabs ---------- */
+  #projectBar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--header-bg);
+    backdrop-filter: blur(10px);
+    flex-shrink: 0; position: relative; z-index: 15;
   }
-  #projectSel:focus { border-color: var(--accent); }
+  #projectTabs {
+    display: flex; gap: 7px;
+    overflow-x: auto; scrollbar-width: none;
+    flex: 1; padding: 2px;
+    scroll-behavior: smooth;
+  }
+  #projectTabs::-webkit-scrollbar { display: none; }
+  .ptab {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-dim);
+    font-size: 13px; font-weight: 600; font-family: inherit;
+    white-space: nowrap; cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s, transform .12s;
+  }
+  .ptab:hover { color: var(--text); transform: translateY(-1px); }
+  .ptab.active {
+    color: #fff;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    border-color: transparent;
+    box-shadow: 0 4px 14px rgba(99,102,241,.4);
+  }
+  .ptab .ptab-count {
+    font-size: 11px; font-weight: 700;
+    background: rgba(127,127,127,.22);
+    border-radius: 10px; padding: 1px 7px;
+  }
+  .ptab.active .ptab-count { background: rgba(255,255,255,.25); }
+  .ptab kbd {
+    font-size: 10px; font-family: inherit; opacity: .6;
+    border: 1px solid currentColor; border-radius: 4px;
+    padding: 0 4px; line-height: 14px;
+  }
 
   .stats { font-size: 13px; color: var(--text-dim); }
   .spacer { flex: 1; }
@@ -143,6 +209,33 @@
   }
   .bg-option .check { margin-left: auto; color: var(--accent); visibility: hidden; }
   .bg-option.active .check { visibility: visible; }
+  .popover .sep { height: 1px; background: var(--border); margin: 12px 0 10px; }
+  .pop-btn {
+    display: block; width: 100%;
+    padding: 9px 10px; margin-top: 6px;
+    border-radius: 9px; border: 1px dashed var(--border);
+    background: none; color: var(--text-dim);
+    font-size: 13px; font-weight: 600; font-family: inherit;
+    cursor: pointer; transition: .15s; text-align: center;
+  }
+  .pop-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,.07); }
+  .pop-btn.solid { border-style: solid; }
+  .slider-row { margin-top: 12px; }
+  .slider-row label {
+    display: flex; justify-content: space-between;
+    font-size: 11.5px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 5px;
+  }
+  .slider-row input[type=range] {
+    width: 100%; accent-color: var(--accent); cursor: pointer;
+  }
+  #wpThumb {
+    width: 100%; height: 62px; border-radius: 9px;
+    background-size: cover; background-position: center;
+    border: 1px solid var(--border); margin-top: 8px;
+    display: none;
+  }
+  #wpThumb.show { display: block; }
 
   /* ---------- Board ---------- */
   #board {
@@ -238,15 +331,28 @@
     border-radius: 10px;
     padding: 12px 14px;
     cursor: grab;
-    transition: transform .12s, box-shadow .12s, border-color .12s;
+    /* only compositor-friendly properties animate, so dragging stays smooth */
+    transition: transform .13s cubic-bezier(.2,.8,.3,1), box-shadow .13s ease;
+    will-change: transform;
     animation: pop .2s ease;
   }
   .card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-2px) scale(1.008);
     box-shadow: var(--card-shadow);
-    border-left-color: var(--card-color, var(--accent));
   }
-  .card.dragging { opacity: .35; transform: rotate(2deg) scale(.98); }
+  .card:active { cursor: grabbing; }
+  .card.dragging {
+    opacity: .4;
+    transform: rotate(1.5deg) scale(.97);
+    box-shadow: 0 14px 30px rgba(0,0,0,.35);
+    transition: none;           /* never lag behind the cursor */
+  }
+  /* brief glow where a card just landed */
+  @keyframes landed {
+    from { box-shadow: 0 0 0 2px var(--accent), var(--card-shadow); transform: scale(1.03); }
+    to   { box-shadow: 0 0 0 0 transparent; transform: scale(1); }
+  }
+  .card.landed { animation: landed .45s cubic-bezier(.2,.8,.3,1); }
   .card-title { font-size: 14px; font-weight: 600; line-height: 1.4; word-wrap: break-word; }
   .card-desc {
     font-size: 12.5px; color: var(--text-dim); margin-top: 6px;
@@ -255,16 +361,23 @@
   }
 
   .drop-indicator {
-    height: 3px; border-radius: 2px;
-    background: var(--accent);
+    height: 4px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent), #a855f7);
     margin: -5px 4px;
-    box-shadow: 0 0 8px var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    animation: indicatorIn .12s ease;
   }
+  @keyframes indicatorIn { from { opacity: 0; transform: scaleX(.7); } }
   .cards.drag-over-empty {
     outline: 2px dashed var(--accent);
     outline-offset: -6px;
     border-radius: 10px;
     background: rgba(99,102,241,.06);
+  }
+  /* the column you are hovering lifts slightly */
+  .column.drag-target {
+    border-color: var(--accent);
+    box-shadow: 0 10px 34px rgba(99,102,241,.28), var(--shadow);
   }
 
   .add-card-btn {
@@ -544,25 +657,47 @@
 </head>
 <body>
 
+<div id="wallpaper"></div>
+<div id="wallpaperTint"></div>
+
 <header>
   <div class="logo">📋</div>
   <h1>Kanban</h1>
-  <select id="projectSel" title="Switch project"></select>
-  <button class="hdr-btn" id="btnNewProject" title="New project">＋</button>
-  <button class="hdr-btn" id="btnRenameProject" title="Rename project">✎</button>
-  <button class="hdr-btn" id="btnDeleteProject" title="Delete project">🗑</button>
   <span class="stats" id="stats"></span>
   <div class="spacer"></div>
   <button class="hdr-btn" id="btnDone" title="Everything you've completed">🏆</button>
-  <button class="hdr-btn" id="btnBg" title="Background">🎨</button>
+  <button class="hdr-btn" id="btnBg" title="Background & wallpaper">🎨</button>
   <button class="hdr-btn" id="btnTheme" title="Dark / light mode">🌙</button>
   <button id="versionTag" title="Check for updates">v…</button>
   <div id="saveStatus"><span class="dot"></span><span id="saveText">Saved</span></div>
   <div class="popover" id="bgPopover">
     <h3>Background</h3>
     <div id="bgOptions"></div>
+    <div class="sep"></div>
+    <h3>Wallpaper</h3>
+    <div id="wpThumb"></div>
+    <button class="pop-btn" id="btnPickWallpaper">Choose an image…</button>
+    <button class="pop-btn" id="btnClearWallpaper" style="display:none">Remove wallpaper</button>
+    <input type="file" id="wpFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+    <div id="wpControls" style="display:none">
+      <div class="slider-row">
+        <label>Dim <span id="wpDimVal">35%</span></label>
+        <input type="range" id="wpDim" min="0" max="85" step="5">
+      </div>
+      <div class="slider-row">
+        <label>Blur <span id="wpBlurVal">0px</span></label>
+        <input type="range" id="wpBlur" min="0" max="24" step="2">
+      </div>
+    </div>
   </div>
 </header>
+
+<nav id="projectBar">
+  <div id="projectTabs"></div>
+  <button class="hdr-btn" id="btnNewProject" title="New project">＋</button>
+  <button class="hdr-btn" id="btnRenameProject" title="Rename current project">✎</button>
+  <button class="hdr-btn" id="btnDeleteProject" title="Delete current project">🗑</button>
+</nav>
 
 <div id="board"></div>
 
@@ -748,7 +883,88 @@ function applyTheme() {
   const bg = BACKGROUNDS[data.settings.background] || BACKGROUNDS.indigo;
   document.body.style.background = bg[theme];
   $("#btnTheme").textContent = theme === "dark" ? "🌙" : "☀️";
+  applyWallpaper();
 }
+
+/* ---------- wallpaper ---------- */
+
+function applyWallpaper() {
+  const s = data.settings;
+  const on = !!s.wallpaper;
+  document.documentElement.classList.toggle("has-wallpaper", on);
+  if (!on) return;
+
+  // cache-buster so a freshly uploaded image shows up immediately
+  $("#wallpaper").style.backgroundImage = `url("/wallpaper?v=${s.wallpaper}")`;
+  $("#wallpaper").style.filter = s.wpBlur ? `blur(${s.wpBlur}px)` : "none";
+
+  const dim = (s.wpDim ?? 35) / 100;
+  const dark = data.settings.theme !== "light";
+  $("#wallpaperTint").style.background = dark
+    ? `rgba(8,10,15,${dim})`
+    : `rgba(255,255,255,${dim})`;
+}
+
+function syncWallpaperControls() {
+  const s = data.settings;
+  const on = !!s.wallpaper;
+  $("#wpControls").style.display = on ? "" : "none";
+  $("#btnClearWallpaper").style.display = on ? "" : "none";
+  $("#wpThumb").classList.toggle("show", on);
+  if (on) $("#wpThumb").style.backgroundImage = `url("/wallpaper?v=${s.wallpaper}")`;
+  $("#wpDim").value = s.wpDim ?? 35;
+  $("#wpBlur").value = s.wpBlur ?? 0;
+  $("#wpDimVal").textContent = `${s.wpDim ?? 35}%`;
+  $("#wpBlurVal").textContent = `${s.wpBlur ?? 0}px`;
+}
+
+$("#btnPickWallpaper").addEventListener("click", () => $("#wpFile").click());
+
+$("#wpFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  $("#btnPickWallpaper").textContent = "Uploading…";
+  try {
+    const res = await fetch("/api/wallpaper", {
+      method: "POST",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    const out = await res.json();
+    if (!out.ok) throw new Error(out.error || "upload failed");
+    data.settings.wallpaper = Date.now();      // doubles as the cache-buster
+    if (data.settings.wpDim === undefined) data.settings.wpDim = 35;
+    if (data.settings.wpBlur === undefined) data.settings.wpBlur = 0;
+    applyWallpaper();
+    syncWallpaperControls();
+    scheduleSave();
+  } catch (err) {
+    alert("Could not set that wallpaper.\n" + err.message);
+  }
+  $("#btnPickWallpaper").textContent = "Choose an image…";
+  e.target.value = "";
+});
+
+$("#btnClearWallpaper").addEventListener("click", () => {
+  delete data.settings.wallpaper;
+  applyWallpaper();
+  syncWallpaperControls();
+  scheduleSave();
+});
+
+$("#wpDim").addEventListener("input", (e) => {
+  data.settings.wpDim = Number(e.target.value);
+  $("#wpDimVal").textContent = `${e.target.value}%`;
+  applyWallpaper();
+  scheduleSave();
+});
+
+$("#wpBlur").addEventListener("input", (e) => {
+  data.settings.wpBlur = Number(e.target.value);
+  $("#wpBlurVal").textContent = `${e.target.value}px`;
+  applyWallpaper();
+  scheduleSave();
+});
 
 $("#btnTheme").addEventListener("click", () => {
   data.settings.theme = data.settings.theme === "light" ? "dark" : "light";
@@ -778,6 +994,7 @@ function buildBgOptions() {
 $("#btnBg").addEventListener("click", (e) => {
   e.stopPropagation();
   buildBgOptions();
+  syncWallpaperControls();
   $("#bgPopover").classList.toggle("open");
 });
 document.addEventListener("click", (e) => {
@@ -789,22 +1006,35 @@ document.addEventListener("click", (e) => {
 /* ---------- projects ---------- */
 
 function renderProjects() {
-  const sel = $("#projectSel");
-  sel.innerHTML = "";
-  for (const p of data.projects) {
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = p.name;
-    if (p.id === data.activeProject) opt.selected = true;
-    sel.appendChild(opt);
-  }
+  const tabs = $("#projectTabs");
+  tabs.innerHTML = "";
+  data.projects.forEach((p, i) => {
+    const count = p.columns.reduce((n, c) => n + c.cards.length, 0);
+    const tab = document.createElement("button");
+    tab.className = "ptab" + (p.id === data.activeProject ? " active" : "");
+    tab.dataset.projectId = p.id;
+    tab.innerHTML = `${i < 9 ? `<kbd>${i + 1}</kbd>` : ""}<span>${esc(p.name)}</span>` +
+      `<span class="ptab-count">${count}</span>`;
+    tab.addEventListener("click", () => switchProject(p.id));
+    tabs.appendChild(tab);
+  });
+  const active = tabs.querySelector(".ptab.active");
+  if (active) active.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
-$("#projectSel").addEventListener("change", (e) => {
-  data.activeProject = e.target.value;
+function switchProject(id) {
+  if (!id || id === data.activeProject) return;
+  data.activeProject = id;
   scheduleSave();
+  renderProjects();
   render();
-});
+}
+
+function stepProject(delta) {
+  const i = data.projects.findIndex((p) => p.id === data.activeProject);
+  const next = data.projects[(i + delta + data.projects.length) % data.projects.length];
+  if (next) switchProject(next.id);
+}
 
 $("#btnNewProject").addEventListener("click", () => {
   const name = prompt("New project name:", "");
@@ -931,9 +1161,12 @@ function render() {
 
     colEl.querySelector(".add-card-btn").addEventListener("click", () => openModal(col.id, null));
 
+    if (col.bg) colEl.classList.add("tinted");  // keep the glass effect off custom colors
+
     const cardsEl = colEl.querySelector(".cards");
-    for (const card of col.cards) cardsEl.appendChild(renderCard(col, card));
-    attachDropZone(cardsEl, col);
+    const frag = document.createDocumentFragment();
+    for (const card of col.cards) frag.appendChild(renderCard(card));
+    cardsEl.appendChild(frag);
 
     boardEl.appendChild(colEl);
   }
@@ -954,17 +1187,31 @@ function render() {
   });
   boardEl.appendChild(addCol);
 
+  updateStats();
+}
+
+/* Cheap refresh after a drag: counts only, no DOM rebuild. */
+function updateStats() {
+  const board = project();
   const total = board.columns.reduce((n, c) => n + c.cards.length, 0);
   const doneCols = board.columns.filter(isDoneColumn);
   const doneCount = doneCols.reduce((n, c) => n + c.cards.length, 0);
   $("#stats").textContent = total
     ? `${total} task${total === 1 ? "" : "s"}${doneCols.length ? ` · ${doneCount} done` : ""}`
     : "";
+  for (const col of board.columns) {
+    const el = $("#board").querySelector(`.column[data-col-id="${cssId(col.id)}"] .col-count`);
+    if (el) el.textContent = col.cards.length;
+  }
+  const tab = $("#projectTabs").querySelector(".ptab.active .ptab-count");
+  if (tab) tab.textContent = total;
 }
 
-function renderCard(col, card) {
+const cssId = (v) => (window.CSS && CSS.escape ? CSS.escape(v) : v);
+
+function renderCard(card) {
   const el = document.createElement("div");
-  el.className = "card";
+  el.className = "card" + (card.bg ? " tinted" : "");
   el.draggable = true;
   el.dataset.cardId = card.id;
   el.style.setProperty("--card-color", card.color || CARD_COLORS[0]);
@@ -977,89 +1224,165 @@ function renderCard(col, card) {
     const desc = el.querySelector(".card-desc");
     if (desc) desc.style.color = t.dim;
   }
-
-  el.addEventListener("click", () => openModal(col.id, card.id));
-  el.addEventListener("dragstart", (e) => {
-    drag = { cardId: card.id, fromColId: col.id };
-    e.dataTransfer.effectAllowed = "move";
-    setTimeout(() => el.classList.add("dragging"), 0);
-  });
-  el.addEventListener("dragend", () => {
-    drag = null;
-    el.classList.remove("dragging");
-    clearDropHints();
-  });
-  return el;
+  return el;  // no per-card listeners — the board handles events for all of them
 }
 
-/* ---------- drag & drop ---------- */
+/* ---------- drag & drop ----------
+   All events are delegated to #board, the drop marker is a single reused
+   node, and dropping moves the existing element instead of re-rendering. */
+
+const boardEl = $("#board");
+let dragEl = null;          // the card element being dragged
+let dropMarker = null;      // one indicator, reused for the whole session
+let markerParent = null;    // where the marker currently sits
+let markerBefore = null;    // the card it is inserted before (null = at the end)
+let hoverColumn = null;
+let pointerY = 0;
+let dragFrame = 0;
+
+function marker() {
+  if (!dropMarker) {
+    dropMarker = document.createElement("div");
+    dropMarker.className = "drop-indicator";
+  }
+  return dropMarker;
+}
 
 function clearDropHints() {
-  document.querySelectorAll(".drop-indicator").forEach((n) => n.remove());
-  document.querySelectorAll(".cards.drag-over-empty").forEach((n) => n.classList.remove("drag-over-empty"));
+  if (dropMarker && dropMarker.parentNode) dropMarker.remove();
+  markerParent = markerBefore = null;
+  if (hoverColumn) {
+    hoverColumn.classList.remove("drag-target");
+    const zone = hoverColumn.querySelector(".cards");
+    if (zone) zone.classList.remove("drag-over-empty");
+    hoverColumn = null;
+  }
 }
 
-function attachDropZone(cardsEl, col) {
-  cardsEl.addEventListener("dragover", (e) => {
-    if (!drag) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    clearDropHints();
-
-    const cards = [...cardsEl.querySelectorAll(".card:not(.dragging)")];
-    if (!cards.length) { cardsEl.classList.add("drag-over-empty"); return; }
-
-    const after = cards.find((c) => e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2);
-    const line = document.createElement("div");
-    line.className = "drop-indicator";
-    if (after) cardsEl.insertBefore(line, after);
-    else cardsEl.appendChild(line);
-  });
-
-  cardsEl.addEventListener("drop", (e) => {
-    if (!drag) return;
-    e.preventDefault();
-    const board = project();
-
-    const indicator = cardsEl.querySelector(".drop-indicator");
-    let index = col.cards.length;
-    if (indicator) {
-      const visible = [...cardsEl.children].filter((n) => n.classList.contains("card") && !n.classList.contains("dragging"));
-      const nextCard = indicator.nextElementSibling && indicator.nextElementSibling.classList.contains("card")
-        ? indicator.nextElementSibling : null;
-      if (nextCard) {
-        index = col.cards.findIndex((c) => c.id === nextCard.dataset.cardId);
-        if (index < 0) index = col.cards.length;
-      } else {
-        index = col.cards.length;
-      }
-    } else if (!col.cards.length) {
-      index = 0;
-    }
-
-    const fromCol = board.columns.find((c) => c.id === drag.fromColId);
-    const cardIdx = fromCol.cards.findIndex((c) => c.id === drag.cardId);
-    const [card] = fromCol.cards.splice(cardIdx, 1);
-
-    if (fromCol.id === col.id && cardIdx < index) index--;
-    col.cards.splice(Math.min(index, col.cards.length), 0, card);
-
-    // remember when something was actually finished (or un-finished)
-    if (isDoneColumn(col)) {
-      if (!card.doneAt) card.doneAt = new Date().toISOString();
-    } else {
-      delete card.doneAt;
-    }
-
-    drag = null;
-    clearDropHints();
-    scheduleSave(); render();
-  });
-
-  cardsEl.addEventListener("dragleave", (e) => {
-    if (!cardsEl.contains(e.relatedTarget)) clearDropHints();
-  });
+/* Which card should the dragged one land in front of? (null = at the end) */
+function findInsertBefore(cardsEl, y) {
+  const nodes = cardsEl.children;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (node === dragEl || node === dropMarker || !node.classList.contains("card")) continue;
+    const rect = node.getBoundingClientRect();  // read only, no writes in between
+    if (y < rect.top + rect.height / 2) return node;
+  }
+  return null;
 }
+
+function placeMarker(cardsEl) {
+  const before = findInsertBefore(cardsEl, pointerY);
+  if (markerParent === cardsEl && markerBefore === before) return;  // nothing moved
+  markerParent = cardsEl;
+  markerBefore = before;
+  if (before) cardsEl.insertBefore(marker(), before);
+  else cardsEl.appendChild(marker());
+}
+
+boardEl.addEventListener("dragstart", (e) => {
+  const card = e.target.closest(".card");
+  if (!card) return;
+  dragEl = card;
+  drag = { cardId: card.dataset.cardId, fromColId: card.closest(".column").dataset.colId };
+  e.dataTransfer.effectAllowed = "move";
+  requestAnimationFrame(() => card.classList.add("dragging"));
+});
+
+boardEl.addEventListener("dragover", (e) => {
+  if (!drag) return;
+  const cardsEl = e.target.closest(".cards");
+  if (!cardsEl) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  pointerY = e.clientY;
+
+  const colEl = cardsEl.closest(".column");
+  const enteredNewColumn = hoverColumn !== colEl;
+  if (enteredNewColumn) {
+    if (hoverColumn) {
+      hoverColumn.classList.remove("drag-target");
+      hoverColumn.querySelector(".cards").classList.remove("drag-over-empty");
+    }
+    hoverColumn = colEl;
+    colEl.classList.add("drag-target");
+  }
+  const empty = !cardsEl.querySelector(".card:not(.dragging)");
+  cardsEl.classList.toggle("drag-over-empty", empty);
+
+  // show the marker at once when entering a column, then coalesce the
+  // many small movements inside it into one update per animation frame
+  if (enteredNewColumn) {
+    if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
+    placeMarker(cardsEl);
+    return;
+  }
+  if (dragFrame) return;
+  dragFrame = requestAnimationFrame(() => {
+    dragFrame = 0;
+    if (drag) placeMarker(cardsEl);
+  });
+});
+
+boardEl.addEventListener("drop", (e) => {
+  if (!drag) return;
+  const cardsEl = e.target.closest(".cards");
+  if (!cardsEl) return;
+  e.preventDefault();
+  if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
+
+  const board = project();
+  const toCol = board.columns.find((c) => c.id === cardsEl.closest(".column").dataset.colId);
+  const fromCol = board.columns.find((c) => c.id === drag.fromColId);
+  if (!toCol || !fromCol) { clearDropHints(); return; }
+
+  // work the position out from the pointer, so a very fast drop is still exact
+  const beforeNode = findInsertBefore(cardsEl, e.clientY);
+  const beforeId = beforeNode ? beforeNode.dataset.cardId : null;
+  const fromIdx = fromCol.cards.findIndex((c) => c.id === drag.cardId);
+  if (fromIdx < 0) { clearDropHints(); return; }
+  const [card] = fromCol.cards.splice(fromIdx, 1);
+
+  let index = beforeId ? toCol.cards.findIndex((c) => c.id === beforeId) : toCol.cards.length;
+  if (index < 0) index = toCol.cards.length;
+  toCol.cards.splice(index, 0, card);
+
+  // remember when something was actually finished (or un-finished)
+  if (isDoneColumn(toCol)) {
+    if (!card.doneAt) card.doneAt = new Date().toISOString();
+  } else {
+    delete card.doneAt;
+  }
+
+  // move the element we already have instead of rebuilding the board
+  const node = dragEl;
+  if (beforeNode) cardsEl.insertBefore(node, beforeNode);
+  else cardsEl.appendChild(node);
+
+  clearDropHints();
+  node.classList.remove("dragging");
+  node.classList.add("landed");
+  setTimeout(() => node.classList.remove("landed"), 460);
+  dragEl = null;
+  drag = null;
+
+  updateStats();
+  scheduleSave();
+});
+
+boardEl.addEventListener("dragend", () => {
+  if (dragFrame) { cancelAnimationFrame(dragFrame); dragFrame = 0; }
+  if (dragEl) dragEl.classList.remove("dragging");
+  dragEl = null;
+  drag = null;
+  clearDropHints();
+});
+
+boardEl.addEventListener("click", (e) => {
+  const card = e.target.closest(".card");
+  if (!card) return;
+  openModal(card.closest(".column").dataset.colId, card.dataset.cardId);
+});
 
 /* ---------- modal ---------- */
 
@@ -1183,6 +1506,18 @@ document.addEventListener("keydown", (e) => {
     $("#bgPopover").classList.remove("open");
   }
   if (e.key === "Enter" && e.target.id === "inpTitle") $("#btnSave").click();
+
+  // jump between projects — Alt+1..9, Alt+←/→
+  const typing = /^(INPUT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable;
+  if (typing || !data) return;
+  if (e.altKey && e.key >= "1" && e.key <= "9") {
+    const p = data.projects[Number(e.key) - 1];
+    if (p) { e.preventDefault(); switchProject(p.id); }
+  } else if (e.altKey && e.key === "ArrowRight") {
+    e.preventDefault(); stepProject(1);
+  } else if (e.altKey && e.key === "ArrowLeft") {
+    e.preventDefault(); stepProject(-1);
+  }
 });
 
 /* ---------- global Done panel ---------- */
