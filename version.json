@@ -1,5 +1,5 @@
 {
-  "version": "1.7.0",
-  "date": "2026-08-17",
-  "notes": "Faster drag & drop, project tabs with Alt+1…9 shortcuts, and your own wallpaper with dim and blur."
+  "version": "1.8.0",
+  "date": "2026-08-21",
+  "notes": "Two-level hierarchy: master categories hold boards. Drag a board tab onto a category to re-file it, Alt+Shift+1…9 jumps between categories."
 }

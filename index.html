@@ -101,6 +101,55 @@
   }
   h1 { font-size: 18px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; }
 
+  /* ---------- Category bar (master categories) ---------- */
+  #groupBar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--header-bg);
+    backdrop-filter: blur(10px);
+    flex-shrink: 0; position: relative; z-index: 16;
+  }
+  #groupTabs {
+    display: flex; gap: 7px;
+    overflow-x: auto; scrollbar-width: none;
+    flex: 1; padding: 2px;
+    scroll-behavior: smooth;
+  }
+  #groupTabs::-webkit-scrollbar { display: none; }
+  .gtab {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 13px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-dim);
+    font-size: 12.5px; font-weight: 700; font-family: inherit;
+    letter-spacing: .2px;
+    white-space: nowrap; cursor: pointer;
+    transition: color .15s, border-color .15s, background .15s, transform .12s;
+  }
+  .gtab:hover { color: var(--text); transform: translateY(-1px); }
+  .gtab.active {
+    color: var(--text);
+    background: var(--surface-3);
+    border-color: var(--accent);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .gtab .gtab-ico { font-size: 13px; }
+  /* a board tab is being dragged over this category */
+  .gtab.drop-here {
+    border-color: var(--accent);
+    background: rgba(99,102,241,.18);
+    color: var(--text);
+    transform: scale(1.05);
+  }
+  .bar-label {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .8px;
+    text-transform: uppercase; color: var(--text-dim);
+    opacity: .65; flex-shrink: 0;
+  }
+
   /* ---------- Project tabs ---------- */
   #projectBar {
     display: flex; align-items: center; gap: 8px;
@@ -146,6 +195,16 @@
     border: 1px solid currentColor; border-radius: 4px;
     padding: 0 4px; line-height: 14px;
   }
+  .ptab.tab-dragging { opacity: .4; transform: scale(.95); }
+
+  /* a category with no boards yet */
+  .board-empty {
+    margin: 40px auto; text-align: center; max-width: 420px;
+    color: var(--text-dim);
+  }
+  .board-empty .big { font-size: 42px; display: block; margin-bottom: 12px; }
+  .board-empty h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+  .board-empty p { font-size: 13.5px; line-height: 1.6; }
 
   .stats { font-size: 13px; color: var(--text-dim); }
   .spacer { flex: 1; }
@@ -572,6 +631,15 @@
   .cfg-row input { accent-color: var(--accent); cursor: pointer; }
   .cfg-row .n { font-size: 11.5px; color: var(--text-dim); margin-left: auto; }
 
+  .done-cat {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(99,102,241,.14);
+    border-radius: 6px; padding: 2px 7px;
+    vertical-align: middle; margin-right: 2px;
+  }
+
   /* ---------- Modal ---------- */
   #overlay {
     position: fixed; inset: 0;
@@ -692,11 +760,21 @@
   </div>
 </header>
 
+<nav id="groupBar">
+  <span class="bar-label">Category</span>
+  <div id="groupTabs"></div>
+  <button class="hdr-btn" id="btnNewGroup" title="New category">＋</button>
+  <button class="hdr-btn" id="btnRenameGroup" title="Rename this category">✎</button>
+  <button class="hdr-btn" id="btnDeleteGroup" title="Delete this category">🗑</button>
+</nav>
+
 <nav id="projectBar">
+  <span class="bar-label">Boards</span>
   <div id="projectTabs"></div>
-  <button class="hdr-btn" id="btnNewProject" title="New project">＋</button>
-  <button class="hdr-btn" id="btnRenameProject" title="Rename current project">✎</button>
-  <button class="hdr-btn" id="btnDeleteProject" title="Delete current project">🗑</button>
+  <button class="hdr-btn" id="btnNewProject" title="New board in this category">＋</button>
+  <button class="hdr-btn" id="btnRenameProject" title="Rename current board">✎</button>
+  <button class="hdr-btn" id="btnMoveProject" title="Move this board to another category">⇄</button>
+  <button class="hdr-btn" id="btnDeleteProject" title="Delete current board">🗑</button>
 </nav>
 
 <div id="board"></div>
@@ -820,8 +898,37 @@ function textColorFor(hex) {
     : { text: "#f0f2f7", dim: "rgba(240,242,247,.68)" };
 }
 
+function group() {
+  return data.groups.find((g) => g.id === data.activeGroup) || data.groups[0];
+}
+
+/* the boards filed under a category */
+function groupProjects(gid) {
+  const id = gid || (group() && group().id);
+  return data.projects.filter((p) => p.groupId === id);
+}
+
 function project() {
-  return data.projects.find((p) => p.id === data.activeProject) || data.projects[0];
+  return data.projects.find((p) => p.id === data.activeProject) || groupProjects()[0];
+}
+
+/* mirrors the migration on the server, so an old file works even offline */
+function migrateClient(d) {
+  if (!d.settings) d.settings = { theme: "dark", background: "indigo" };
+  if (d.columns && !d.projects) {
+    d.projects = [{ id: uid(), name: "My Project", columns: d.columns }];
+    delete d.columns;
+  }
+  if (!d.projects) d.projects = [];
+  if (!d.groups || !d.groups.length) d.groups = [{ id: "g1", name: "My Boards" }];
+  const known = new Set(d.groups.map((g) => g.id));
+  for (const p of d.projects) if (!known.has(p.groupId)) p.groupId = d.groups[0].id;
+  if (!known.has(d.activeGroup)) d.activeGroup = d.groups[0].id;
+  if (!d.projects.some((p) => p.id === d.activeProject)) {
+    const first = d.projects.find((p) => p.groupId === d.activeGroup) || d.projects[0];
+    d.activeProject = first ? first.id : null;
+  }
+  return d;
 }
 
 // A column counts as "done" if you ticked it, otherwise if it is named like one.
@@ -866,11 +973,14 @@ async function loadData() {
     data = await (await fetch("/api/board")).json();
   } catch {
     setStatus("error", "Could not load board");
-    data = { settings: { theme: "dark", background: "indigo" }, activeProject: "p1",
-             projects: [{ id: "p1", name: "My Project", columns: defaultColumns() }] };
+    data = { settings: { theme: "dark", background: "indigo" },
+             activeGroup: "g1", activeProject: "p1",
+             groups: [{ id: "g1", name: "My Boards" }],
+             projects: [{ id: "p1", groupId: "g1", name: "My Project", columns: defaultColumns() }] };
   }
-  if (!data.settings) data.settings = { theme: "dark", background: "indigo" };
+  migrateClient(data);
   applyTheme();
+  renderGroups();
   renderProjects();
   render();
 }
@@ -1005,10 +1115,147 @@ document.addEventListener("click", (e) => {
 
 /* ---------- projects ---------- */
 
+/* ---------- categories ---------- */
+
+let tabDrag = null;   // id of the board tab being dragged onto a category
+
+function renderGroups() {
+  const bar = $("#groupTabs");
+  bar.innerHTML = "";
+  data.groups.forEach((g, i) => {
+    const boards = groupProjects(g.id);
+    const tasks = boards.reduce((n, p) =>
+      n + p.columns.reduce((m, c) => m + c.cards.length, 0), 0);
+    const tab = document.createElement("button");
+    tab.className = "gtab" + (g.id === data.activeGroup ? " active" : "");
+    tab.dataset.groupId = g.id;
+    tab.innerHTML = `<span class="gtab-ico">📁</span>` +
+      `${i < 9 ? `<kbd>⇧${i + 1}</kbd>` : ""}<span>${esc(g.name)}</span>` +
+      `<span class="ptab-count">${boards.length}</span>`;
+    tab.title = `${boards.length} board${boards.length === 1 ? "" : "s"}, ${tasks} task${tasks === 1 ? "" : "s"}` +
+      `\nDrop a board here to move it into this category`;
+    tab.addEventListener("click", () => switchGroup(g.id));
+
+    // dropping a board tab here re-files that board
+    tab.addEventListener("dragover", (e) => {
+      if (!tabDrag) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      tab.classList.add("drop-here");
+    });
+    tab.addEventListener("dragleave", () => tab.classList.remove("drop-here"));
+    tab.addEventListener("drop", (e) => {
+      if (!tabDrag) return;
+      e.preventDefault();
+      tab.classList.remove("drop-here");
+      moveProjectToGroup(tabDrag, g.id);
+    });
+    bar.appendChild(tab);
+  });
+  const active = bar.querySelector(".gtab.active");
+  if (active) active.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+
+function switchGroup(id) {
+  const target = data.groups.find((g) => g.id === id);
+  if (!target || id === data.activeGroup) return;
+  const current = group();
+  if (current) current.lastProject = data.activeProject;   // come back where you left
+  data.activeGroup = id;
+  const boards = groupProjects(id);
+  const want = boards.find((p) => p.id === target.lastProject) || boards[0];
+  data.activeProject = want ? want.id : null;
+  scheduleSave();
+  renderGroups(); renderProjects(); render();
+}
+
+function stepGroup(delta) {
+  const i = data.groups.findIndex((g) => g.id === data.activeGroup);
+  const next = data.groups[(i + delta + data.groups.length) % data.groups.length];
+  if (next) switchGroup(next.id);
+}
+
+function moveProjectToGroup(projectId, groupId) {
+  const p = data.projects.find((x) => x.id === projectId);
+  const g = data.groups.find((x) => x.id === groupId);
+  if (!p || !g || p.groupId === groupId) return;
+  p.groupId = groupId;
+  // follow the board into its new home so it stays visible
+  data.activeGroup = groupId;
+  data.activeProject = p.id;
+  scheduleSave();
+  renderGroups(); renderProjects(); render();
+}
+
+$("#btnNewGroup").addEventListener("click", () => {
+  const name = prompt("New category name (e.g. Software):", "");
+  if (!name || !name.trim()) return;
+  const g = { id: uid(), name: name.trim() };
+  data.groups.push(g);
+  data.activeGroup = g.id;
+  data.activeProject = null;
+  scheduleSave();
+  renderGroups(); renderProjects(); render();
+});
+
+$("#btnRenameGroup").addEventListener("click", () => {
+  const g = group();
+  if (!g) return;
+  const name = prompt("Rename category:", g.name);
+  if (!name || !name.trim()) return;
+  g.name = name.trim();
+  scheduleSave();
+  renderGroups();
+});
+
+$("#btnDeleteGroup").addEventListener("click", () => {
+  if (data.groups.length <= 1) {
+    alert("You need at least one category. Create another one first.");
+    return;
+  }
+  const g = group();
+  const boards = groupProjects(g.id);
+  const msg = boards.length
+    ? `Delete the category "${g.name}" and the ${boards.length} board(s) inside it?\n\n` +
+      boards.map((b) => "• " + b.name).join("\n") +
+      `\n\nEvery task on those boards is deleted too. This cannot be undone.`
+    : `Delete the empty category "${g.name}"?`;
+  if (!confirm(msg)) return;
+  data.projects = data.projects.filter((p) => p.groupId !== g.id);
+  data.groups = data.groups.filter((x) => x.id !== g.id);
+  data.activeGroup = data.groups[0].id;
+  const first = groupProjects(data.activeGroup)[0];
+  data.activeProject = first ? first.id : null;
+  scheduleSave();
+  renderGroups(); renderProjects(); render();
+});
+
+$("#btnMoveProject").addEventListener("click", () => {
+  const p = project();
+  if (!p) { alert("There is no board to move."); return; }
+  if (data.groups.length <= 1) {
+    alert("There is only one category. Create another one first, then move boards into it.");
+    return;
+  }
+  const list = data.groups
+    .map((g, i) => `${i + 1}. ${g.name}${g.id === p.groupId ? "  (current)" : ""}`)
+    .join("\n");
+  const answer = prompt(`Move the board "${p.name}" to which category?\n\n${list}\n\nType a number:`, "");
+  if (answer === null) return;
+  const idx = Number(answer.trim()) - 1;
+  if (!Number.isInteger(idx) || idx < 0 || idx >= data.groups.length) {
+    alert("That is not one of the numbers in the list.");
+    return;
+  }
+  moveProjectToGroup(p.id, data.groups[idx].id);
+});
+
+/* ---------- boards inside the current category ---------- */
+
 function renderProjects() {
   const tabs = $("#projectTabs");
   tabs.innerHTML = "";
-  data.projects.forEach((p, i) => {
+  groupProjects().forEach((p, i) => {
     const count = p.columns.reduce((n, c) => n + c.cards.length, 0);
     const tab = document.createElement("button");
     tab.className = "ptab" + (p.id === data.activeProject ? " active" : "");
@@ -1016,6 +1263,20 @@ function renderProjects() {
     tab.innerHTML = `${i < 9 ? `<kbd>${i + 1}</kbd>` : ""}<span>${esc(p.name)}</span>` +
       `<span class="ptab-count">${count}</span>`;
     tab.addEventListener("click", () => switchProject(p.id));
+
+    tab.draggable = true;
+    tab.addEventListener("dragstart", (e) => {
+      tabDrag = p.id;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", p.id);  // Firefox needs some payload
+      tab.classList.add("tab-dragging");
+    });
+    tab.addEventListener("dragend", () => {
+      tabDrag = null;
+      tab.classList.remove("tab-dragging");
+      document.querySelectorAll(".gtab.drop-here")
+        .forEach((n) => n.classList.remove("drop-here"));
+    });
     tabs.appendChild(tab);
   });
   const active = tabs.querySelector(".ptab.active");
@@ -1031,18 +1292,22 @@ function switchProject(id) {
 }
 
 function stepProject(delta) {
-  const i = data.projects.findIndex((p) => p.id === data.activeProject);
-  const next = data.projects[(i + delta + data.projects.length) % data.projects.length];
+  const boards = groupProjects();
+  if (!boards.length) return;
+  const i = boards.findIndex((p) => p.id === data.activeProject);
+  const next = boards[(i + delta + boards.length) % boards.length];
   if (next) switchProject(next.id);
 }
 
 $("#btnNewProject").addEventListener("click", () => {
   const name = prompt("New project name:", "");
   if (!name || !name.trim()) return;
-  const p = { id: uid(), name: name.trim(), columns: defaultColumns() };
+  const p = { id: uid(), groupId: data.activeGroup, name: name.trim(),
+              columns: defaultColumns() };
   data.projects.push(p);
   data.activeProject = p.id;
   scheduleSave();
+  renderGroups();
   renderProjects();
   render();
 });
@@ -1057,16 +1322,19 @@ $("#btnRenameProject").addEventListener("click", () => {
 });
 
 $("#btnDeleteProject").addEventListener("click", () => {
+  const p = project();
+  if (!p) return;
   if (data.projects.length <= 1) {
-    alert("You need at least one project. Create another project first.");
+    alert("You need at least one board. Create another board first.");
     return;
   }
-  const p = project();
   const total = p.columns.reduce((n, c) => n + c.cards.length, 0);
-  if (!confirm(`Delete project "${p.name}"${total ? ` and its ${total} task(s)` : ""}? This cannot be undone.`)) return;
+  if (!confirm(`Delete the board "${p.name}"${total ? ` and its ${total} task(s)` : ""}? This cannot be undone.`)) return;
   data.projects = data.projects.filter((x) => x.id !== p.id);
-  data.activeProject = data.projects[0].id;
+  const left = groupProjects();
+  data.activeProject = left.length ? left[0].id : null;
   scheduleSave();
+  renderGroups();
   renderProjects();
   render();
 });
@@ -1077,6 +1345,18 @@ function render() {
   const board = project();
   const boardEl = $("#board");
   boardEl.innerHTML = "";
+
+  if (!board) {   // a category with no boards in it yet
+    const g = group();
+    boardEl.innerHTML = `<div class="board-empty">
+      <span class="big">🗂️</span>
+      <h3>“${esc(g ? g.name : "This category")}” has no boards yet</h3>
+      <p>Use <b>＋</b> in the Boards row to create one here, or drag an existing
+      board tab onto this category to move it in.</p>
+    </div>`;
+    updateStats();
+    return;
+  }
 
   for (const col of board.columns) {
     const colEl = document.createElement("div");
@@ -1193,6 +1473,7 @@ function render() {
 /* Cheap refresh after a drag: counts only, no DOM rebuild. */
 function updateStats() {
   const board = project();
+  if (!board) { $("#stats").textContent = ""; return; }
   const total = board.columns.reduce((n, c) => n + c.cards.length, 0);
   const doneCols = board.columns.filter(isDoneColumn);
   const doneCount = doneCols.reduce((n, c) => n + c.cards.length, 0);
@@ -1507,23 +1788,42 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.key === "Enter" && e.target.id === "inpTitle") $("#btnSave").click();
 
-  // jump between projects — Alt+1..9, Alt+←/→
+  // jump around: Alt+1..9 boards, Alt+Shift+1..9 categories, Alt+arrows to step.
+  // e.code is used rather than e.key because Alt+1 types "¡" on a Mac.
   const typing = /^(INPUT|TEXTAREA)$/.test(e.target.tagName) || e.target.isContentEditable;
-  if (typing || !data) return;
-  if (e.altKey && e.key >= "1" && e.key <= "9") {
-    const p = data.projects[Number(e.key) - 1];
-    if (p) { e.preventDefault(); switchProject(p.id); }
-  } else if (e.altKey && e.key === "ArrowRight") {
-    e.preventDefault(); stepProject(1);
-  } else if (e.altKey && e.key === "ArrowLeft") {
-    e.preventDefault(); stepProject(-1);
+  if (typing || !data || !e.altKey) return;
+
+  const digit = /^Digit([1-9])$/.exec(e.code);
+  if (digit) {
+    e.preventDefault();
+    const n = Number(digit[1]) - 1;
+    if (e.shiftKey) {
+      const g = data.groups[n];
+      if (g) switchGroup(g.id);
+    } else {
+      const p = groupProjects()[n];
+      if (p) switchProject(p.id);
+    }
+    return;
   }
+  if (e.key === "ArrowRight") { e.preventDefault(); stepProject(1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); stepProject(-1); }
+  else if (e.key === "ArrowDown") { e.preventDefault(); stepGroup(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); stepGroup(-1); }
 });
 
 /* ---------- global Done panel ---------- */
 
 function collectDone() {
-  return data.projects.map((p) => {
+  // walk category by category so the panel mirrors the board hierarchy
+  const ordered = [];
+  for (const g of data.groups) {
+    for (const p of data.projects.filter((x) => x.groupId === g.id)) ordered.push({ p, g });
+  }
+  for (const p of data.projects) {              // safety net for anything unfiled
+    if (!ordered.some((o) => o.p.id === p.id)) ordered.push({ p, g: null });
+  }
+  return ordered.map(({ p, g }) => {
     const items = [];
     for (const col of p.columns) {
       if (!isDoneColumn(col)) continue;
@@ -1531,7 +1831,7 @@ function collectDone() {
     }
     // newest first; cards finished before dates were tracked sink to the bottom
     items.sort((a, b) => (b.card.doneAt || "").localeCompare(a.card.doneAt || ""));
-    return { p, items, total: p.columns.reduce((n, c) => n + c.cards.length, 0) };
+    return { p, g, items, total: p.columns.reduce((n, c) => n + c.cards.length, 0) };
   });
 }
 
@@ -1553,7 +1853,8 @@ function renderDonePanel() {
 
   $("#doneTotal").textContent = done;
   $("#doneSub").textContent =
-    `across ${data.projects.length} project${data.projects.length === 1 ? "" : "s"}`;
+    `across ${data.projects.length} board${data.projects.length === 1 ? "" : "s"} ` +
+    `in ${data.groups.length} categor${data.groups.length === 1 ? "y" : "ies"}`;
 
   const now = Date.now();
   const within = (days) => groups.reduce((n, g) => n + g.items.filter((i) =>
@@ -1577,7 +1878,7 @@ function renderDonePanel() {
     const share = g.total ? Math.round((g.items.length / g.total) * 100) : 0;
     sec.innerHTML = `
       <div class="done-project-head">
-        <h3>${esc(g.p.name)}</h3>
+        <h3>${g.g ? `<span class="done-cat">${esc(g.g.name)}</span> ` : ""}${esc(g.p.name)}</h3>
         <span class="pill">${g.items.length} / ${g.total}</span>
         <div class="bar"><span style="width:${share}%"></span></div>
       </div>`;

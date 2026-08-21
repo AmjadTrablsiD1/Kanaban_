@@ -52,29 +52,46 @@ def default_columns():
 
 DEFAULT_DATA = {
     "settings": {"theme": "dark", "background": "indigo"},
+    "activeGroup": "g1",
     "activeProject": "p1",
+    "groups": [{"id": "g1", "name": "My Boards"}],
     "projects": [
-        {"id": "p1", "name": "My Project", "columns": default_columns()},
+        {"id": "p1", "groupId": "g1", "name": "My Project", "columns": default_columns()},
     ],
 }
+
+
+def migrate(data):
+    """Bring an older board file up to the current shape, keeping every task."""
+    data.setdefault("settings", {"theme": "dark", "background": "indigo"})
+
+    if "columns" in data and "projects" not in data:  # the very first format
+        data["projects"] = [{"id": "p1", "name": "My Project",
+                             "columns": data.pop("columns")}]
+
+    projects = data.setdefault("projects", [])
+    groups = data.setdefault("groups", [])
+    if not groups:  # a flat list of boards -> gather them under one category
+        groups.append({"id": "g1", "name": "My Boards"})
+
+    known = {g["id"] for g in groups}
+    for p in projects:  # every board belongs to exactly one category
+        if p.get("groupId") not in known:
+            p["groupId"] = groups[0]["id"]
+
+    if data.get("activeGroup") not in known:
+        data["activeGroup"] = groups[0]["id"]
+    if data.get("activeProject") not in {p["id"] for p in projects}:
+        data["activeProject"] = projects[0]["id"] if projects else None
+    return data
 
 
 def load_board():
     if os.path.exists(BOARD_FILE):
         try:
             with open(BOARD_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            if "projects" in data:
-                return data
-            if "columns" in data:  # migrate old single-board format
-                return {
-                    "settings": {"theme": "dark", "background": "indigo"},
-                    "activeProject": "p1",
-                    "projects": [
-                        {"id": "p1", "name": "My Project", "columns": data["columns"]},
-                    ],
-                }
-        except (json.JSONDecodeError, OSError):
+                return migrate(json.load(f))
+        except (json.JSONDecodeError, OSError, AttributeError, KeyError, TypeError):
             pass  # corrupted file -> fall back to default, don't crash
     return DEFAULT_DATA
 

@@ -17,9 +17,17 @@ If it's already running, double-clicking again just reopens the browser tab.
 
 ## Features
 
-- **Project tabs** — one click per board, right under the header.
-  `Alt`+`1`…`9` jumps straight to a project, `Alt`+`←`/`→` steps through them.
-  ＋ creates a project, ✎ renames it, 🗑 deletes it
+- **Categories → boards → lists → cards** — two levels of grouping.
+  A *category* (say **Software**) holds as many *boards* as you like
+  (**OpenEMS Studio**, **EMX**, …), and each board has its own lists and cards.
+  The **Category** row picks the master category, the **Boards** row picks the
+  board inside it
+- **Re-filing a board** — drag its tab in the Boards row onto any category tab,
+  or press ⇄ to pick a category from a list. Tasks always travel with the board
+- **Jumping around** — `Alt`+`1`…`9` selects a board in the current category,
+  `Alt`+`Shift`+`1`…`9` selects a category, `Alt`+`←`/`→` steps through boards
+  and `Alt`+`↑`/`↓` through categories. Each category remembers the board you
+  were last on
 - **Wallpaper** — 🎨 → *Choose an image…* puts your own picture behind the
   board, with **dim** and **blur** sliders. Panels turn to frosted glass over it.
   *Remove wallpaper* goes back to the gradients
