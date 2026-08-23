@@ -321,8 +321,8 @@
   @keyframes pop { from { opacity: 0; transform: translateY(8px); } }
 
   .col-header {
-    display: flex; align-items: center; gap: 10px;
-    padding: 14px 16px 10px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 13px 13px 10px;
     flex-shrink: 0;
     border-radius: calc(var(--radius) - 3px) calc(var(--radius) - 3px) 0 0;
   }
@@ -355,8 +355,11 @@
   }
   .col-title {
     font-weight: 700; font-size: 14px; letter-spacing: .4px;
-    flex: 1; cursor: text; border-radius: 6px; padding: 2px 6px;
-    outline: none; min-width: 0; overflow: hidden; white-space: nowrap;
+    line-height: 1.3;
+    flex: 1; cursor: text; border-radius: 6px; padding: 3px 6px;
+    outline: none; min-width: 0;
+    white-space: normal;       /* a long list name wraps instead of being cut off */
+    overflow-wrap: break-word; /* only breaks inside a word when it cannot fit alone */
   }
   .col-title:focus { background: var(--surface-3); }
   .col-count {

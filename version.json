@@ -1,5 +1,5 @@
 {
-  "version": "1.8.0",
+  "version": "1.8.1",
   "date": "2026-08-21",
-  "notes": "Two-level hierarchy: master categories hold boards. Drag a board tab onto a category to re-file it, Alt+Shift+1…9 jumps between categories."
+  "notes": "Long list names now wrap onto several lines instead of being cut off. Column width is unchanged."
 }
