@@ -1,5 +1,5 @@
 {
-  "version": "1.8.1",
+  "version": "1.9.0",
   "date": "2026-08-21",
-  "notes": "Long list names now wrap onto several lines instead of being cut off. Column width is unchanged."
+  "notes": "Lists can be reordered: grab the ⠿ handle in a list header and drag it left or right. Long list names also wrap instead of being cut off."
 }

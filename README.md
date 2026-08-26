@@ -32,7 +32,9 @@ If it's already running, double-clicking again just reopens the browser tab.
   board, with **dim** and **blur** sliders. Panels turn to frosted glass over it.
   *Remove wallpaper* goes back to the gradients
 - **To Do / Doing / Done** columns — add more with ＋ Add column,
-  click a title to rename
+  click a title to rename (long names wrap onto several lines, nothing is hidden)
+- **Reorder lists** — grab the ⠿ handle at the left of a list header and drag the
+  whole list left or right. The board scrolls by itself when you reach an edge
 - **Column colors** — the round dot picks the accent color (top bar,
   dot, header tint); the small square next to ✕ picks the **background
   color of the whole list** (↺ resets it to the theme default)
