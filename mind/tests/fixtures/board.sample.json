@@ -1,0 +1,111 @@
+{
+  "settings": {
+    "theme": "dark"
+  },
+  "activeGroup": "g1",
+  "groups": [
+    {
+      "id": "g1",
+      "name": "Software"
+    },
+    {
+      "id": "g2",
+      "name": "Home"
+    }
+  ],
+  "projects": [
+    {
+      "id": "p1",
+      "groupId": "g1",
+      "name": "OpenEMS Studio",
+      "columns": [
+        {
+          "title": "To Do",
+          "cards": [
+            {
+              "title": "Port editor"
+            },
+            {
+              "title": "Mesh preview"
+            }
+          ]
+        },
+        {
+          "title": "Doing",
+          "cards": [
+            {
+              "title": "VTK viewport"
+            }
+          ]
+        },
+        {
+          "title": "Done",
+          "cards": [
+            {
+              "title": "Project file format",
+              "doneAt": "2026-09-01T10:00:00Z"
+            }
+          ]
+        },
+        {
+          "title": "Bugs",
+          "cards": [
+            {
+              "title": "Crash on resize",
+              "desc": "Only with two monitors"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p2",
+      "groupId": "g1",
+      "name": "EMX",
+      "columns": [
+        {
+          "title": "To Do",
+          "cards": [
+            {
+              "title": "Gerber import"
+            }
+          ]
+        },
+        {
+          "title": "Done",
+          "cards": [
+            {
+              "title": "Stackup editor"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "p3",
+      "groupId": "g2",
+      "name": "Garden",
+      "columns": [
+        {
+          "title": "To Do",
+          "cards": [
+            {
+              "title": "Plant roses"
+            },
+            {
+              "title": "Fix the fence"
+            }
+          ]
+        },
+        {
+          "title": "Erledigt",
+          "cards": [
+            {
+              "title": "Buy soil"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

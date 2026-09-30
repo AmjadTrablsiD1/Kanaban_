@@ -1,0 +1,2 @@
+# Runtime: nothing. The app runs on Python's standard library alone, like the
+# Kanban board it ships inside -- so a work PC without pip still runs it.

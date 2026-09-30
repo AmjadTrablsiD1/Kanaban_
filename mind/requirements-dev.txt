@@ -1,0 +1,3 @@
+-r requirements.txt
+# Test tooling, never installed into the shipped copy.
+pytest==9.0.2

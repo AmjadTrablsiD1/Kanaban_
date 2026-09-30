@@ -1,0 +1,44 @@
+# --- Python ---
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# --- Node / Vite ---
+node_modules/
+.vite/
+*.tsbuildinfo
+
+# --- Playwright ---
+test-results/
+playwright-report/
+tests/screenshots/*.png
+!tests/screenshots/baseline/*.png
+
+# --- macOS ---
+.DS_Store
+*.app/
+*.icns.tmp
+
+# --- app runtime: never commit the user's own state ---
+*.log
+logs/
+.env
+.env.local
+local_settings.json
+data/
+scratch/
+
+# Keep: package-lock.json, requirements.txt, shared/constants.json, shared/themes.json
+
+# --- Kanaban Mind ---
+# e2e runs get a throwaway data folder; your real maps live in ~/.config/kanaban-mind
+.e2e-data/
+# never commit anyone's real Kanban board or maps
+board.json
+maps/
+backups/
+settings.json
+workspace.json

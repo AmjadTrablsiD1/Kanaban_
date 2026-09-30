@@ -3,6 +3,35 @@
 A simple, beautiful Kanban board that runs on any platform (Windows, macOS, Linux).
 No installation needed — only Python 3, which is already on most systems.
 
+## New in 2.0: Kanaban Mind
+
+The start page is now **Kanaban Mind** — your boards as mind maps (in the `mind/` folder):
+
+- every **category** becomes a map, every **board** a branch, every **card** a node with its
+  status, description, colour and completion date. Columns like *Bugs* or *Ideas* stay as
+  branches of their own
+- a **Board** view of each map (the Kanban columns you know), **2D** and **3D** views
+- **planning**: what waits for what, *any of / one of / at least N*, questions with answers
+  and *what if*, estimates and due dates, the critical path, and **Next up** — only what you can
+  do right now
+- **Everything done** and **Everything to do** across all maps, ten themes, spacing
+
+**Your board is safe.** On its first start Kanaban Mind *reads* `board.json` and turns it into
+maps. `board.json` itself is never changed, and a copy of it is kept with the maps
+(`backups/kanban-board-before-import-….json`). The maps are saved in `~/.config/kanaban-mind`
+(on Windows `C:\Users\<you>\.config\kanaban-mind`) — outside this folder, so no update can
+touch them. Settings → *Open data folder* shows where.
+
+**The classic board is still here**: Settings → *Classic board*, or
+http://localhost:8433/classic — with its own `board.json`, exactly as before. The two are not
+linked: a card added there does not appear in the maps.
+
+If Kanaban Mind cannot start for any reason, the start page is the classic board again, and
+the terminal says why.
+
+Still nothing to install: Kanaban Mind runs on Python's standard library, and its user
+interface comes already built.
+
 ## Start it (pick one)
 
 - **macOS:** double-click `Kanban.command`
@@ -61,10 +90,12 @@ If it's already running, double-clicking again just reopens the browser tab.
 | File                  | Purpose                                         |
 |-----------------------|-------------------------------------------------|
 | `kanban.py`           | The app — server + auto-save (stdlib only)      |
-| `index.html`          | The user interface                              |
+| `mind/`               | Kanaban Mind, the start page since 2.0 (code and its built UI) |
+| `index.html`          | The classic board's user interface (`/classic`) |
 | `version.json`        | Version number — how other machines detect an update |
 | `board.example.json`  | A sample board showing the file format          |
 | `board.json`          | **Your** projects & settings — created on first run, never committed |
+| `~/.config/kanaban-mind` | **Your** mind maps — outside the app folder, never committed |
 | `wallpaper.*`         | Your wallpaper image — stays on your machine        |
 | `Kanban.command`      | Double-click launcher for macOS                 |
 | `Kanban.bat`          | Double-click launcher for Windows               |
@@ -117,8 +148,14 @@ The header shows the version you are running, e.g. `v1.4.0`.
 - **Later** hides the panel until the next new version.
 - No internet? The check fails silently — nothing is nagged or broken.
 - Your `board.json` is never replaced, so **updating never touches your tasks**.
+- Since 2.0 the same updater is in Kanaban Mind: a purple *vX available* chip at the top
+  right, and Settings → *Version & updates*. Your maps live outside the app folder, so an
+  update never touches them either.
 
 ### Publishing a new version (do this on the machine you edited)
+
+Kanaban Mind is developed in its own repository and shipped into `mind/` with its UI built:
+`scripts/ship_to_kanban.sh <this folder>` (run from the Kanaban Mind repository).
 
 Bump `"version"` in `version.json` (and write a short `"notes"` line), then:
 

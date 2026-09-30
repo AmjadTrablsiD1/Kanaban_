@@ -5,8 +5,12 @@ Kanban Board — cross-platform, zero dependencies (Python standard library only
 Run:  python kanban.py
 Then your browser opens automatically at http://localhost:8433
 
-The board is saved to board.json next to this file, so all tasks are
-remembered the next time you start the app.
+Since 2.0 the start page is Kanaban Mind (the folder mind/): your boards as mind
+maps, the board view, planning and 3D. On its first start it turns board.json
+into maps -- board.json itself is only read, never changed. The classic board is
+still here, at http://localhost:8433/classic, with its own board.json as before.
+If Kanaban Mind cannot start for any reason, the classic board is the start page
+again, exactly as in 1.x.
 """
 
 import filecmp
@@ -22,11 +26,12 @@ import time
 import urllib.request
 import webbrowser
 import zipfile
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 BOARD_FILE = os.path.join(HERE, "board.json")
-INDEX_FILE = os.path.join(HERE, "index.html")
+INDEX_FILE = os.path.join(HERE, "index.html")        # the classic board
+MIND_DIR = os.path.join(HERE, "mind")                # Kanaban Mind, the start page since 2.0
 VERSION_FILE = os.path.join(HERE, "version.json")
 PORT = int(os.environ.get("KANBAN_PORT", "8433"))  # set KANBAN_PORT to use another port
 
@@ -122,11 +127,49 @@ def save_wallpaper(content_type, payload):
     return True, "saved"
 
 
+_board_lock = threading.Lock()  # requests are answered in parallel: one write at a time
+
+
 def save_board(data):
-    tmp = BOARD_FILE + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, BOARD_FILE)  # atomic write, board.json is never half-written
+    with _board_lock:
+        tmp = BOARD_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, BOARD_FILE)  # atomic write, board.json is never half-written
+
+
+# ---------------------------------------------------------------- Kanaban Mind
+
+mind = None            # the Kanaban Mind API, once it has started
+mind_http = None       # its read_body / send helpers
+mind_elsewhere = None  # the address of a Kanaban Mind already running on its own
+mind_problem = None    # why it did not start -- the classic board is the start page then
+
+
+def load_mind():
+    """Start Kanaban Mind beside the classic board. Any failure leaves the classic board as it was."""
+    global mind, mind_http, mind_elsewhere, mind_problem
+    if not os.path.isfile(os.path.join(MIND_DIR, "server", "api.py")):
+        mind_problem = "the mind folder is missing"
+        return
+    try:
+        if MIND_DIR not in sys.path:
+            sys.path.insert(0, MIND_DIR)
+        from app.constants import C
+        os.environ[C.paths.kanban_board_env] = BOARD_FILE     # its first start reads *this* board
+        import main as mind_main
+        other = mind_main.already_running()
+        if other and other != PORT:
+            # Kanaban Mind was started on its own and holds the maps: send people there,
+            # never run two servers on one data folder.
+            mind_elsewhere = f"http://{C.server.host}:{other}/"
+            return
+        from server import api as mind_api
+        mind = mind_api.MindApp()
+        mind_http = mind_api
+        mind_main.PORT_FILE.write_text(str(PORT))              # and a standalone start finds us
+    except Exception as err:  # noqa: BLE001 -- anything at all: the classic board must still open
+        mind, mind_problem = None, f"{type(err).__name__}: {err}"
 
 
 # ---------------------------------------------------------------- updates
@@ -334,11 +377,32 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _mind(self):
+        """Hand the request to Kanaban Mind. True if it answered."""
+        if mind is None:
+            return False
+        body = mind_http.read_body(self)
+        if body is not None:
+            reply = mind.handle(self.command, self.path, self.headers, body)
+            mind_http.send(self, reply or (404, b'{"detail": "not found"}', "application/json", {}))
+        return True
+
+    def _classic_page(self):
+        with open(INDEX_FILE, "rb") as f:
+            self._send(200, f.read(), "text/html; charset=utf-8")
+
     def do_GET(self):
         path, _, query = self.path.partition("?")
-        if path in ("/", "/index.html"):
-            with open(INDEX_FILE, "rb") as f:
-                self._send(200, f.read(), "text/html; charset=utf-8")
+        if path in ("/classic", "/classic/", "/classic/index.html"):
+            self._classic_page()
+        elif path in ("/", "/index.html") and mind is None:
+            if mind_elsewhere:
+                self.send_response(302)
+                self.send_header("Location", mind_elsewhere)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+            else:
+                self._classic_page()
         elif path == "/api/board":
             self._send(200, json.dumps(load_board()))
         elif path == "/api/update":
@@ -352,7 +416,7 @@ class Handler(BaseHTTPRequestHandler):
                 payload = f.read()
             kind = next(k for k, v in WALLPAPER_TYPES.items() if found.endswith(v))
             self._send(200, payload, kind)
-        else:
+        elif not self._mind():
             self._send(404, '{"error": "not found"}')
 
     def do_POST(self):
@@ -384,8 +448,14 @@ class Handler(BaseHTTPRequestHandler):
             }))
             if ok:
                 restart_app()
-        else:
+        elif not self._mind():
             self._send(404, '{"error": "not found"}')
+
+    def do_PUT(self):
+        if not self._mind():
+            self._send(404, '{"error": "not found"}')
+
+    do_DELETE = do_PUT
 
 
 def announce_update():
@@ -408,7 +478,8 @@ def main():
     deadline = time.time() + (20 if restarted else 0)
     while True:
         try:
-            server = HTTPServer(("127.0.0.1", PORT), Handler)
+            server = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+            server.daemon_threads = True
             break
         except OSError:
             if time.time() < deadline:
@@ -419,12 +490,21 @@ def main():
             webbrowser.open(url)
             return
 
+    load_mind()
     version = local_version().get("version", FALLBACK_VERSION)
     if restarted:
         print(f"  Updated — Kanban board v{version} restarted at {url}")
     else:
         print(f"  Kanban board v{version} running at {url}")
-    print(f"  Tasks are saved in {BOARD_FILE}")
+    if mind is not None:
+        print(f"  Kanaban Mind: your maps are saved in {mind.store.root}")
+        print(f"  The classic board: {url}/classic  (its tasks stay in {BOARD_FILE})")
+    elif mind_elsewhere:
+        print(f"  Kanaban Mind is already running on its own at {mind_elsewhere} - {url} opens it")
+        print(f"  The classic board: {url}/classic  (its tasks stay in {BOARD_FILE})")
+    else:
+        print(f"  Kanaban Mind did not start ({mind_problem}) - showing the classic board")
+        print(f"  Tasks are saved in {BOARD_FILE}")
     print("  Press Ctrl+C to stop.")
 
     if not restarted:  # the browser tab is already open after an update

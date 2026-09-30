@@ -1,0 +1,428 @@
+{
+  "_comment": "RULE 11: the single source of truth. No literal number, path, port, timeout, limit or label may appear anywhere else. Python reads this via app/constants.py, the UI imports it via ui/src/constants.ts.",
+  "app": {
+    "id": "kanaban-mind",
+    "name": "Kanaban Mind",
+    "version": "2.0.0",
+    "icon": "🧠",
+    "tagline": "Your Kanban, as a mind map"
+  },
+  "updates": {
+    "classic_path": "/classic",
+    "restart_first_wait_ms": 1500,
+    "restart_poll_ms": 700,
+    "restart_timeout_ms": 45000
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 0,
+    "whoami_token": "kanaban-mind-1",
+    "startup_timeout_s": 15,
+    "probe_interval_s": 0.15,
+    "browser_delay_s": 0.2,
+    "max_body_mb": 25,
+    "reconnect_poll_s": 3
+  },
+  "paths": {
+    "data_dir": "~/.config/kanaban-mind",
+    "data_dir_env": "KANABAN_MIND_DATA",
+    "state_dir": "~/.local/state/kanaban-mind",
+    "maps_subdir": "maps",
+    "backups_subdir": "backups",
+    "workspace_file": "workspace.json",
+    "settings_file": "settings.json",
+    "port_file": "port",
+    "kanban_board": "~/Desktop/Projects_Git/Kanaban/Kanaban/board.json",
+    "kanban_board_env": "KANABAN_MIND_KANBAN_BOARD",
+    "kanban_copy": "kanban-board-before-import-{stamp}.json"
+  },
+  "storage": {
+    "replace_tries": 20,
+    "replace_wait_s": 0.05,
+    "schema": 1,
+    "backup_every_s": 600,
+    "backups_kept_per_map": 30,
+    "autosave_debounce_ms": 450
+  },
+  "ui": {
+    "default_theme": "midnight",
+    "min_window_width": 900,
+    "motion_ms": 160,
+    "toast_ms": 3800,
+    "undo_limit": 200,
+    "search_results": 40,
+    "zoom_min": 0.12,
+    "zoom_max": 2.5,
+    "fit_padding": 0.18,
+    "grid_gap": 28,
+    "new_node_gap_x": 90,
+    "new_node_gap_y": 26,
+    "node_min_w": 150,
+    "node_max_w": 300,
+    "ring_min_tasks": 1,
+    "fit_max_zoom": 1.1,
+    "focus_retry_frames": 20
+  },
+  "settings_defaults": {
+    "theme": "midnight",
+    "saveOnExit": true,
+    "sidebarOpen": true,
+    "minimap": true,
+    "snapToGrid": false,
+    "showNotes": true,
+    "view": "2d",
+    "autoArrange": true,
+    "compact": false,
+    "hideDone": false,
+    "colorful": true,
+    "spacing": "normal",
+    "depMode": "warn",
+    "criticalBy": "estimate",
+    "showCritical": false,
+    "layout3d": "cone",
+    "labels3d": "smart",
+    "remember3d": true
+  },
+  "statuses": {
+    "_comment": "A registry: add a status here plus its q-<id> colour in themes.json, nothing else. counts_as: null = not a task (ideas), 'open' or 'done' for progress.",
+    "order": [
+      "idea",
+      "todo",
+      "doing",
+      "done"
+    ],
+    "items": {
+      "idea": {
+        "label": "Idea",
+        "key": "0",
+        "counts_as": null,
+        "glyph": "idea"
+      },
+      "todo": {
+        "label": "To do",
+        "key": "1",
+        "counts_as": "open",
+        "glyph": "todo"
+      },
+      "doing": {
+        "label": "Doing",
+        "key": "2",
+        "counts_as": "open",
+        "glyph": "doing"
+      },
+      "done": {
+        "label": "Done",
+        "key": "3",
+        "counts_as": "done",
+        "glyph": "done"
+      }
+    },
+    "default_new": "todo",
+    "space_toggle": [
+      "todo",
+      "done"
+    ]
+  },
+  "edges": {
+    "_comment": "When you drag one node onto another: 'auto' makes a branch if the target has no parent yet (it joins the tree) and a link otherwise; the edge toolbar flips it either way.",
+    "kinds": {
+      "branch": {
+        "label": "Branch",
+        "hint": "Parent → child. Counts toward progress and Tidy."
+      },
+      "link": {
+        "label": "Link",
+        "hint": "Cross-connection. Never counted."
+      },
+      "needs": {
+        "label": "Needs",
+        "hint": "A dependency: the arrow's end waits for its start."
+      }
+    },
+    "default_drag_kind": "auto"
+  },
+  "layout": {
+    "level_gap_x": 90,
+    "sibling_gap_y": 22,
+    "tree_gap_y": 140,
+    "est_char_w": 7.4,
+    "est_line_h": 20,
+    "est_pad_w": 64,
+    "est_pad_h": 46,
+    "est_min_w": 150,
+    "est_max_w": 300,
+    "spacing": {
+      "_comment": "How far apart nodes sit: a factor on the gaps between levels and between siblings (2D), and on connection length (3D).",
+      "order": [
+        "tight",
+        "normal",
+        "roomy",
+        "airy"
+      ],
+      "items": {
+        "tight": {
+          "label": "Tight",
+          "factor": 0.6
+        },
+        "normal": {
+          "label": "Normal",
+          "factor": 1.0
+        },
+        "roomy": {
+          "label": "Roomy",
+          "factor": 1.5
+        },
+        "airy": {
+          "label": "Airy",
+          "factor": 2.2
+        }
+      }
+    }
+  },
+  "kanban_import": {
+    "done_elsewhere_note": "Marked done in the Kanban on {date}.",
+    "done_names": [
+      "done",
+      "completed",
+      "complete",
+      "finished",
+      "fertig",
+      "erledigt",
+      "abgeschlossen"
+    ],
+    "doing_names": [
+      "doing",
+      "in progress",
+      "in process",
+      "wip",
+      "in arbeit",
+      "ongoing"
+    ],
+    "todo_names": [
+      "to do",
+      "todo",
+      "backlog",
+      "offen",
+      "open"
+    ],
+    "default_color": "#6366f1"
+  },
+  "view3d": {
+    "node_rel_size": 5,
+    "link_width_branch": 1.6,
+    "link_width_link": 0.8,
+    "particles_on_links": 2,
+    "label_height": 7,
+    "cooldown_ticks": 160,
+    "warmup_ticks": 40,
+    "first_fit_ms": 350,
+    "fit_padding": 40,
+    "layouts": {
+      "order": [
+        "cone",
+        "organic",
+        "radial",
+        "layers",
+        "sequence",
+        "sphere"
+      ],
+      "items": {
+        "cone": {
+          "label": "Cone tree",
+          "hint": "Each branch opens its own cone. The same shape every time."
+        },
+        "organic": {
+          "label": "Organic",
+          "hint": "Free forces: the map finds its own shape."
+        },
+        "radial": {
+          "label": "Radial",
+          "hint": "Rings around the centre, one per level."
+        },
+        "layers": {
+          "label": "Layers",
+          "hint": "Top-down levels."
+        },
+        "sequence": {
+          "label": "Sequence",
+          "hint": "Along the depth axis by how many steps away a task is (needs)."
+        },
+        "sphere": {
+          "label": "Sphere",
+          "hint": "Children on a half-sphere around their parent (after H3)."
+        }
+      }
+    },
+    "labels": {
+      "order": [
+        "smart",
+        "all",
+        "top",
+        "hover"
+      ],
+      "items": {
+        "smart": {
+          "label": "Smart",
+          "hint": "Names that are big enough on screen, the rest on hover."
+        },
+        "all": {
+          "label": "All",
+          "hint": "Every name, always."
+        },
+        "top": {
+          "label": "Top levels",
+          "hint": "Only the first two levels."
+        },
+        "hover": {
+          "label": "Hover",
+          "hint": "Names only on hover."
+        }
+      }
+    },
+    "cone_level_gap": 60,
+    "cone_min_radius": 22,
+    "cone_radius_per_leaf": 16,
+    "focus_dim": 0.18,
+    "smart_label_min_px": 10,
+    "double_click_ms": 400,
+    "focus_distance": 2.6
+  },
+  "limits": {
+    "max_text_len": 500,
+    "max_note_len": 20000,
+    "max_nodes_per_map": 20000
+  },
+  "done_view": {
+    "_comment": "The 'Everything done' map: built live from every map, never stored as a file.",
+    "id": "__done__",
+    "title": "Everything done",
+    "week_days": 7,
+    "month_days": 30
+  },
+  "todo_view": {
+    "_comment": "'Everything to do': every open task (to do and doing) from every map, around one centre you can name. Built live, never stored; only the centre's name is kept (workspace.json -> centreName).",
+    "id": "__todo__",
+    "title": "Everything to do",
+    "default_centre": "Everything to do",
+    "max_centre_len": 80
+  },
+  "next_view": {
+    "_comment": "'Next up': what can be worked on now, from every map -- tasks under way, questions to answer, tasks nothing waits on. Built live from the plan, never stored.",
+    "id": "__next__",
+    "title": "Next up"
+  },
+  "board": {
+    "_comment": "The Kanban board view: while a card is dragged within edge_zone_px of the board's left or right edge, it scrolls edge_scroll_px per frame.",
+    "edge_zone_px": 70,
+    "edge_scroll_px": 14
+  },
+  "plan": {
+    "_comment": "Planning with conditions. Every list here is a registry: the node Plan panel, the edge toolbar, the badges and the 3D view read it. Derived state (blocked, available, not taken, critical) is computed in ui/src/core/plan.ts and never stored.",
+    "logic": {
+      "order": [
+        "all",
+        "any",
+        "one",
+        "atleast",
+        "sequence"
+      ],
+      "items": {
+        "all": {
+          "label": "All of",
+          "short": "ALL",
+          "hint": "Every part is needed (the usual tree)."
+        },
+        "any": {
+          "label": "Any of",
+          "short": "ANY",
+          "hint": "One finished part is enough."
+        },
+        "one": {
+          "label": "One of",
+          "short": "ONE",
+          "hint": "Alternatives: pick the path you take; the others are not taken."
+        },
+        "atleast": {
+          "label": "At least",
+          "short": "≥",
+          "hint": "A number of the parts is enough."
+        },
+        "sequence": {
+          "label": "In order",
+          "short": "1→2",
+          "hint": "Each part waits for the one above it."
+        }
+      }
+    },
+    "deps": {
+      "order": [
+        "fs",
+        "ss",
+        "ff",
+        "sf"
+      ],
+      "default": "fs",
+      "items": {
+        "fs": {
+          "label": "Finish → start",
+          "short": "FS",
+          "hint": "Can't start until the other is done."
+        },
+        "ss": {
+          "label": "Start → start",
+          "short": "SS",
+          "hint": "Can't start until the other has started."
+        },
+        "ff": {
+          "label": "Finish → finish",
+          "short": "FF",
+          "hint": "Can't be finished until the other is done."
+        },
+        "sf": {
+          "label": "Start → finish",
+          "short": "SF",
+          "hint": "Can't be finished until the other has started."
+        }
+      }
+    },
+    "dep_modes": {
+      "order": [
+        "warn",
+        "strict",
+        "off"
+      ],
+      "items": {
+        "warn": {
+          "label": "Warn",
+          "hint": "Starting a blocked task is allowed, with a warning and Undo."
+        },
+        "strict": {
+          "label": "Strict",
+          "hint": "A blocked task cannot be started or finished."
+        },
+        "off": {
+          "label": "Off",
+          "hint": "Show the locks, never interfere."
+        }
+      }
+    },
+    "critical_by": {
+      "order": [
+        "estimate",
+        "steps"
+      ],
+      "items": {
+        "estimate": {
+          "label": "By estimates",
+          "hint": "The chain with the most days of work."
+        },
+        "steps": {
+          "label": "By steps",
+          "hint": "The chain with the most tasks."
+        }
+      }
+    },
+    "due_soon_days": 3,
+    "max_estimate_days": 3650
+  }
+}

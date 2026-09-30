@@ -1,5 +1,5 @@
 {
-  "version": "1.9.0",
-  "date": "2026-08-21",
-  "notes": "Lists can be reordered: grab the ⠿ handle in a list header and drag it left or right. Long list names also wrap instead of being cut off."
+  "version": "2.0.0",
+  "date": "2026-10-01",
+  "notes": "Kanaban Mind: your boards become mind maps - with a board view, planning (what waits for what, questions, due dates), Next up and 3D. On the first start your board.json is turned into maps; board.json itself is only read, never changed, and the classic board stays one click away (Settings, or /classic)."
 }

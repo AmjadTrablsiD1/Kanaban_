@@ -17,3 +17,18 @@ __pycache__/
 # macOS
 .DS_Store
 ._*
+
+# Kanaban Mind (mind/): your maps live in ~/.config/kanaban-mind, never in here.
+# These are only made when someone develops or tests it inside this folder.
+mind/.venv/
+mind/node_modules/
+mind/ui/node_modules/
+mind/test-results/
+mind/playwright-report/
+mind/.e2e-data/
+mind/tests/screenshots/*.png
+!mind/tests/screenshots/baseline/*.png
+mind/**/*.tsbuildinfo
+maps/
+workspace.json
+settings.json
