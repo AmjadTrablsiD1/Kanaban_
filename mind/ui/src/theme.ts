@@ -30,6 +30,7 @@ export function applyTheme(name: string): void {
   }
   root.style.colorScheme = theme.scheme;
   root.dataset.theme = name in THEMES ? name : C.ui.default_theme;
+  root.dataset.scheme = theme.scheme;               // lighting glows in dark themes, shadows in light ones
   try { localStorage.setItem(KEY, name); } catch { /* private mode */ }
 }
 

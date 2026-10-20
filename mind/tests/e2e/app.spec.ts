@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { clippedElements, foldProbe, pageScrolls } from "../foldProbe.mjs";
-import { center, dragFromHandle, edgeMiddle, MOD, mapByName, node, saved, select, tree } from "./helpers";
+import { center, dockTool, dragFromHandle, edgeMiddle, MOD, mapByName, node, openDockSpacing, saved, select, tree } from "./helpers";
 
 const problems: string[] = [];
 test.beforeEach(async ({ page }) => {
@@ -220,8 +220,8 @@ test("4b · hide done nodes, and the Everything done map", async ({ page }) => {
 
   // hide: every done leaf goes, the gap closes (auto-arrange), the setting sticks
   await page.keyboard.press("h");
-  await expect(page.getByTestId("hide-done")).toHaveAttribute("aria-pressed", "true");
   let st = await saved(page);
+  expect(st.settings.hideDone).toBe(true);
   const soft = mapByName(st, "Software");
   const doneLeaves = soft.nodes.filter((n: any) => n.status === "done" &&
     !soft.edges.some((e: any) => e.kind === "branch" && e.source === n.id)).length;
@@ -263,7 +263,8 @@ test("4b · hide done nodes, and the Everything done map", async ({ page }) => {
   await expect(page.getByTestId("done-canvas")).toBeVisible();
   await page.keyboard.press("d");
   await expect(page.getByTestId("done-canvas")).toHaveCount(0);
-  if (await page.getByTestId("hide-done").getAttribute("aria-pressed") === "true") await page.keyboard.press("h");
+  if ((await saved(page)).settings.hideDone) await page.keyboard.press("h");   // read once everything is saved
+  expect((await saved(page)).settings.hideDone).toBe(false);
   await saved(page);
 });
 
@@ -527,7 +528,7 @@ test("6 · settings persist to settings.json: save, save-on-exit off, reset", as
   expect(s.fileExists && s.settings.theme).toBe("daylight");
 
   await page.getByTestId("set-save-on-exit").uncheck({ force: true });
-  await page.getByText("Overview map").click();
+  await page.getByTestId("minimap-mode-always").click();
   await expect(page.getByTestId("settings-file-state")).toHaveText("You have unsaved setting changes.");
   await page.getByTestId("settings-save").click();
   await expect(page.getByTestId("settings-file-state")).toHaveText("settings.json is up to date.");
@@ -609,7 +610,7 @@ test("6b · themes: ten of them, each readable; T flips dark/light, ⇧T steps o
   // Auto-arrange off (a map arranged by hand): spacing from the dock spreads the map around its centre.
   await page.getByTestId("set-auto").locator("..").click();
   await page.keyboard.press("Escape");
-  await page.getByTestId("spacing-open").click();
+  await openDockSpacing(page);
   const rootAt = (st: any) => { const r = mapByName(st, "Software").nodes.find((x: any) => x.text === "Software"); return [r.x, r.y]; };
   const rootBefore = rootAt(await saved(page));
   await page.getByTestId("dock-spacing-roomy").click();
@@ -867,7 +868,7 @@ test("9 · fold probe: 1366×768, 1440×900 and 900 px wide", async ({ page }) =
       name: "a map open",
       load: async () => { await page.getByTestId("mind-node").first().waitFor(); },
       must: ["[data-testid=new-map]", "[data-testid=import-open]", "[data-testid=settings-open]",
-             "[data-testid=open-search]", "[data-testid=tidy]", "[data-testid=tool-cut]", "[data-testid=fit]",
+             "[data-testid=open-search]", "[data-testid=dock-more]", "[data-testid=tool-cut]", "[data-testid=fit]",
              "[data-testid=view-3d]", "[data-testid=save-state]", "[data-testid=map-title]"],
     }],
   });

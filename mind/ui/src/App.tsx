@@ -1,11 +1,12 @@
 import { ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import { RefreshCw } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { DoneCanvas } from "./canvas/DoneCanvas";
 import { NextCanvas, TodoCanvas } from "./canvas/TodoCanvas";
 import { MindCanvas } from "./canvas/MindCanvas";
 import { buildCommands, handleKey } from "./commands/registry";
 import { Dock, DoneTopBar, ModeBanner, NextTopBar, TodoTopBar, TopBar } from "./components/Chrome";
+import { Capture } from "./components/Capture";
 import { CommandPalette } from "./components/CommandPalette";
 import { EmptyState, NotePanel, SettingsPanel, Toasts, useImport } from "./components/Panels";
 import { PlanPanel } from "./components/PlanPanel";
@@ -15,7 +16,9 @@ import { C } from "./constants";
 import { buildDoneMap } from "./core/done";
 import { buildNextMap } from "./core/next";
 import { buildTodoMap } from "./core/todo";
-import { DONE_VIEW, flushOnExit, NEXT_VIEW, TODO_VIEW, useApp } from "./store/app";
+import { OutlineView } from "./outline/OutlineView";
+import { DONE_VIEW, flushOnExit, NEXT_VIEW, TIMELINE_VIEW, TODO_VIEW, useApp } from "./store/app";
+import { TimelineView } from "./timeline/TimelineView";
 
 const View3D = lazy(() => import("./three/View3D"));
 const BoardView = lazy(() => import("./board/BoardView"));
@@ -66,7 +69,22 @@ function Shell() {
   const sidebarOpen = useApp((s) => s.settings.sidebarOpen);
   const compact = useApp((s) => s.settings.compact);
   const colorful = useApp((s) => s.settings.colorful);
+  const look = useApp((s) => s.settings.look);
+  const lighting = useApp((s) => s.settings.lighting);
+  const doingGlow = useApp((s) => s.settings.doingGlow);
+  const doneFades = useApp((s) => s.settings.doneFades);
+  const zen = useApp((s) => s.zen);
+  const timeline = useApp((s) => s.activeMapId === TIMELINE_VIEW);
+  const [reveal, setReveal] = useState(false);
   const imp = useImport();
+
+  // Zen: the dock comes back while the pointer is near the bottom edge
+  useEffect(() => {
+    if (!zen) { setReveal(false); return; }
+    const move = (e: MouseEvent) => setReveal(e.clientY > window.innerHeight - C.look.zen_reveal_px);
+    window.addEventListener("mousemove", move);
+    return () => window.removeEventListener("mousemove", move);
+  }, [zen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => handleKey(e, commands);
@@ -75,16 +93,19 @@ function Shell() {
   }, [commands]);
 
   useEffect(() => {
-    const title = done ? C.done_view.title : todo ? C.todo_view.title : next ? C.next_view.title : map?.name;
+    const title = done ? C.done_view.title : todo ? C.todo_view.title : next ? C.next_view.title
+      : timeline ? C.timeline.title : map?.name;
     document.title = title ? `${title} — ${C.app.name}` : C.app.name;
-  }, [map?.name, !!done, !!todo, !!next]);   // eslint-disable-line
+  }, [map?.name, !!done, !!todo, !!next, timeline]);   // eslint-disable-line
 
   return (
-    <div className="app" style={{ gridTemplateColumns: sidebarOpen ? "272px 1fr" : "0px 1fr",
-                                  ["--sidebar-w" as string]: sidebarOpen ? "272px" : "0px" }}>
-      <div className="min-w-0 overflow-hidden">{sidebarOpen && <Sidebar onImport={imp.run} />}</div>
-      <main className={"stage" + (compact ? " compact" : "") + (colorful ? " colorful" : "")}>
-        {done ? (
+    <div className={`app look-${look}` + (zen ? " zen" : "") + (reveal ? " reveal" : "")}
+         style={{ gridTemplateColumns: sidebarOpen && !zen ? "272px 1fr" : "0px 1fr",
+                  ["--sidebar-w" as string]: sidebarOpen && !zen ? "272px" : "0px" }}>
+      <div className="min-w-0 overflow-hidden">{sidebarOpen && !zen && <Sidebar onImport={imp.run} />}</div>
+      <main className={"stage" + (compact ? " compact" : "") + (colorful ? " colorful" : "") + ` light-${lighting}` +
+                       (doingGlow ? " doing-glow" : "") + (doneFades ? " done-fades" : "")}>
+        {timeline ? <TimelineView /> : done ? (
           view === "3d"
             ? <Suspense fallback={<Center text="Loading the 3D view…" />}><View3D map={done.map} /></Suspense>
             : <DoneCanvas key="done" done={done} />
@@ -101,7 +122,9 @@ function Shell() {
             ? <Suspense fallback={<Center text="Loading the 3D view…" />}><View3D map={map} /></Suspense>
             : view === "board"
               ? <Suspense fallback={<Center text="Loading the board…" />}><BoardView key={map.id} map={map} /></Suspense>
-              : <MindCanvas key={map.id} map={map} />
+              : view === "outline"
+                ? <OutlineView key={map.id} map={map} />
+                : <MindCanvas key={map.id} map={map} />
         ) : <EmptyState onImport={imp.run} />}
         {done && <DoneTopBar done={done} />}
         {todo && <TodoTopBar todo={todo} />}
@@ -114,6 +137,7 @@ function Shell() {
       <SettingsPanel commands={commands} />
       <NotePanel />
       <PlanPanel />
+      <Capture />
       <Toasts />
       {imp.picker}
     </div>

@@ -105,8 +105,12 @@ export function UpdateChip() {
 }
 
 /** Settings: the version, a manual check, and the way back to the classic board. */
-export function UpdateSettings({ Cap }: { Cap: (p: { children: React.ReactNode }) => React.ReactElement }) {
+type ToggleProps = { label: string; hint?: string; on: boolean; onChange: (v: boolean) => void; testId?: string };
+
+export function UpdateSettings({ Cap, Toggle }: { Cap: (p: { children: React.ReactNode }) => React.ReactElement;
+                                                Toggle: (p: ToggleProps) => React.ReactElement }) {
   const { info, phase } = useUpdates();
+  const editable = useApp((s) => s.settings.classicEditable);
   const [checked, setChecked] = useState(false);
   if (!info || info.standalone) return null;
   return (
@@ -133,8 +137,11 @@ export function UpdateSettings({ Cap }: { Cap: (p: { children: React.ReactNode }
         </a>
       </div>
       <p className="mt-2 text-[12px] leading-relaxed" style={{ color: "var(--textMuted)" }}>
-        The classic board keeps its own file, exactly as before. Changes there do not reach the maps.
+        The classic board keeps its own file, exactly as before. Changes there do not reach the maps, so it opens
+        read-only unless you allow editing.
       </p>
+      <Toggle label="Allow editing the classic board" hint="Off: you can look, but not change it by mistake."
+              on={editable} onChange={(v) => useApp.getState().setSetting("classicEditable", v)} testId="set-classic-editable" />
     </>
   );
 }

@@ -1,10 +1,10 @@
-import { ChevronDown, ChevronUp, Copy, Download, ListTodo, MoreHorizontal, Rocket, PanelLeftClose, Pencil, Plus, Search, Settings2, Trash2, Trophy } from "lucide-react";
+import { CalendarRange, ChevronDown, ChevronUp, Copy, Download, ListTodo, MoreHorizontal, Rocket, PanelLeftClose, Pencil, Plus, Search, Settings2, Trash2, Trophy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { C } from "../constants";
 import { activeTally, mapProgress, tally } from "../core/progress";
 import { MOD } from "../commands/registry";
 import { planOf } from "../core/plan";
-import { DONE_VIEW, NEXT_VIEW, TODO_VIEW, useApp } from "../store/app";
+import { DONE_VIEW, NEXT_VIEW, TIMELINE_VIEW, TODO_VIEW, useApp } from "../store/app";
 import type { MindMap } from "../types";
 
 export function Sidebar({ onImport }: { onImport: () => void }) {
@@ -14,13 +14,13 @@ export function Sidebar({ onImport }: { onImport: () => void }) {
   const list = order.map((id) => maps[id]).filter(Boolean);
 
   return (
-    <aside className="flex h-full w-[272px] flex-col border-r" data-testid="sidebar"
+    <aside className="flex h-full w-[272px] flex-col border-r" data-testid="sidebar" data-chrome="side"
            style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
         <img src="/favicon.svg" alt="" width={30} height={30} style={{ borderRadius: 8 }} />
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold tracking-tight">{C.app.name}</div>
-          <div className="text-[11.5px]" style={{ color: "var(--textMuted)" }}>{C.app.tagline}</div>
+          <div className="tagline text-[11.5px]" style={{ color: "var(--textMuted)" }}>{C.app.tagline}</div>
         </div>
         <button className="icon-btn sm" title={`Hide the map list (${MOD} B)`} aria-label="Hide the map list"
                 onClick={() => useApp.getState().setSetting("sidebarOpen", false)}>
@@ -48,6 +48,7 @@ export function Sidebar({ onImport }: { onImport: () => void }) {
 
       <nav className="min-h-0 flex-1 overflow-y-auto px-2 pb-2" aria-label="Maps">
         {list.length > 0 && <NextItem />}
+        {list.length > 0 && <TimelineItem />}
         {list.length > 0 && <TodoItem />}
         {list.length > 0 && <DoneItem />}
         {list.map((m, i) => <MapItem key={m.id} map={m} active={m.id === active} first={i === 0} last={i === list.length - 1} />)}
@@ -185,6 +186,29 @@ function NextItem() {
         <span className="flex-1 truncate text-[13.5px] font-semibold">{C.next_view.title}</span>
         <span className="num rounded-full px-2 text-[11.5px] font-semibold"
               style={{ background: "var(--surfaceRaised)", color: "var(--accent)" }} data-testid="next-count">{ready}</span>
+      </button>
+    </div>
+  );
+}
+
+/** Every dated task from every map, on one strip of days. */
+function TimelineItem() {
+  const active = useApp((s) => s.activeMapId === TIMELINE_VIEW);
+  const maps = useApp((s) => s.maps);
+  const dated = useMemo(() => Object.values(maps).reduce((a, m) =>
+    a + m.nodes.filter((n) => n.status !== "done" && (n.due || n.after || (n.kind === "condition" && n.decideBy))).length, 0), [maps]);
+  return (
+    <div className="mb-1 rounded-[10px]" data-testid="timeline-item"
+         style={{ background: active ? "var(--surfaceRaised)" : "transparent",
+                  boxShadow: active ? "inset 0 0 0 1px var(--accent)" : "none" }}>
+      <button className="flex w-full items-center gap-2 rounded-[10px] py-2.5 pl-3 pr-3 text-left"
+              style={{ cursor: "pointer", background: "transparent", border: "none" }}
+              aria-current={active ? "page" : undefined} title="Timeline: every due date, from every map (W)"
+              onClick={() => useApp.getState().openMap(TIMELINE_VIEW)}>
+        <CalendarRange size={14} style={{ color: "var(--accent)" }} />
+        <span className="flex-1 truncate text-[13.5px] font-semibold">{C.timeline.title}</span>
+        <span className="num rounded-full px-2 text-[11.5px] font-semibold"
+              style={{ background: "var(--surfaceRaised)", color: "var(--accent)" }} data-testid="timeline-count">{dated}</span>
       </button>
     </div>
   );

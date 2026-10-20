@@ -1,27 +1,35 @@
 import {
-  Background, BackgroundVariant, ConnectionMode, MiniMap, ReactFlow, useReactFlow,
+  Background, BackgroundVariant, ConnectionMode, ReactFlow, useReactFlow,
   type Edge, type EdgeChange, type Node, type NodeChange, type OnConnectEnd,
 } from "@xyflow/react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { C } from "../constants";
 import { branchColors } from "../core/colors";
 import * as cmd from "../core/commands";
-import { hiddenDone } from "../core/done";
-import { depthOf, index } from "../core/graph";
+import { foldedCount } from "../core/fold";
+import { depthOf, descendants, index } from "../core/graph";
 import type { Positions } from "../core/layout";
 import { planOf } from "../core/plan";
-import { layoutIfFresh, measured, sizeOf, useApp } from "../store/app";
+import { hiddenIn, layoutIfFresh, measured, sizeOf, useApp } from "../store/app";
 import { cssVar, paletteOf } from "../theme";
 import type { MindMap } from "../types";
 import { CutLayer } from "./CutLayer";
 import { EdgeDefs, edgeTypes, type EdgeData } from "./edges";
 import MindNodeView, { type NodeData } from "./MindNodeView";
 import { nodePlan } from "./nodePlan";
+import { SmartMiniMap } from "./SmartMiniMap";
 
 const nodeTypes = { mind: MindNodeView };
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const WIDTH = [0, 3.4, 2.6, 2.0];
-const NONE: Set<string> = new Set();
+
+/** Focus: the branch itself, everything under it and the way up to its root stay bright. */
+function bright(id: string | null, idx: ReturnType<typeof index>): Set<string> | null {
+  if (!id || !idx.byId.has(id)) return null;
+  const keep = new Set([id, ...descendants(id, idx)]);
+  for (let cur = idx.parents.get(id)?.[0]; cur && !keep.has(cur); cur = idx.parents.get(cur)?.[0]) keep.add(cur);
+  return keep;
+}
 
 export function MindCanvas({ map }: { map: MindMap }) {
   const rf = useReactFlow();
@@ -34,6 +42,9 @@ export function MindCanvas({ map }: { map: MindMap }) {
   const tool = useApp((s) => s.tool);
   const focus = useApp((s) => s.focus);
   const arrangeTick = useApp((s) => s.arrangeTick);
+  const dragging = useApp((s) => s.dragging);
+  const dropTarget = useApp((s) => s.dropTarget);
+  const focusBranch = useApp((s) => s.focusBranch);
   const [cutHits, setCutHits] = useState<string[]>([]);
   const [tween, setTween] = useState<Positions | null>(null);
   const [measureTick, setMeasureTick] = useState(0);     // sizes arrived: hand them back to React Flow
@@ -47,10 +58,15 @@ export function MindCanvas({ map }: { map: MindMap }) {
   const plan = useMemo(() => planOf(map, { whatIf, criticalBy: settings.criticalBy }), [map, whatIf, settings.criticalBy]);
   const progress = plan.progress;                                // hidden done tasks still count
   const colors = useMemo(() => branchColors(map, paletteOf(settings.theme)), [map, settings.theme]);
-  const hidden = useMemo(() => (settings.hideDone ? hiddenDone(map) : NONE), [map, settings.hideDone]);
+  const hidden = useMemo(() => hiddenIn(map), [map, settings.hideDone]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const lit = useMemo(() => bright(focusBranch, idx), [map, focusBranch, idx]);
 
   const single = selectedNodes.length === 1 && !selectedEdges.length ? selectedNodes[0] : null;
   const singleEdge = selectedEdges.length === 1 && !selectedNodes.length ? selectedEdges[0] : null;
+  // Active colouring: the branch you select (or point at) lights up; the rest stays as it is.
+  const [hovered, setHovered] = useState<string | null>(null);
+  const active = settings.activeBranch && !dragging ? (single ?? hovered) : null;
+  const glow = useMemo(() => bright(active, idx), [active, idx]);
 
   const nodes: Node<NodeData>[] = useMemo(() => {
     const sel = new Set(selectedNodes);
@@ -60,14 +76,19 @@ export function MindCanvas({ map }: { map: MindMap }) {
         node: n, isRoot: !idx.parents.get(n.id)?.length, branch: colors.get(n.id) ?? null,
         progress: progress.get(n.id)!, editing: editingId === n.id,
         seed: editingId === n.id ? editSeed : null, showNote: settings.showNotes,
-        bar: single === n.id && tool === "select" && !linkFrom, linking: linkFrom === n.id,
+        bar: single === n.id && tool === "select" && !linkFrom && !dragging, linking: linkFrom === n.id,
         plan: nodePlan(map, plan, n.id, whatIf, settings.showCritical, idx),
+        folded: n.folded ? foldedCount(map, n.id, idx) : 0,
+        dim: !!lit && !lit.has(n.id),
+        drop: dropTarget === n.id,
+        glow: !!glow && glow.has(n.id),
       };
       const old = cache.get(n.id);
       const same = old && old.node === next.node && old.isRoot === next.isRoot && old.branch === next.branch &&
         old.progress.done === next.progress.done && old.progress.total === next.progress.total &&
         old.editing === next.editing && old.seed === next.seed && old.showNote === next.showNote &&
-        old.bar === next.bar && old.linking === next.linking && old.plan?.key === next.plan?.key;
+        old.bar === next.bar && old.linking === next.linking && old.plan?.key === next.plan?.key &&
+        old.folded === next.folded && old.dim === next.dim && old.drop === next.drop && old.glow === next.glow;
       const data = same ? old! : next;
       cache.set(n.id, data);
       // A controlled flow must carry each node's measured size back in; the
@@ -83,7 +104,7 @@ export function MindCanvas({ map }: { map: MindMap }) {
                ...(size ? { measured: { width: size.w, height: size.h } } : {}) };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, idx, colors, progress, selectedNodes, editingId, editSeed, settings.showNotes, single, tool, linkFrom, tween, measureTick, hidden, plan, settings.showCritical]);
+  }, [map, idx, colors, progress, selectedNodes, editingId, editSeed, settings.showNotes, single, tool, linkFrom, tween, measureTick, hidden, plan, settings.showCritical, dragging, dropTarget, lit, glow]);
 
   const edgeCache = useRef(new Map<string, Edge<EdgeData>>());
   const edges: Edge<EdgeData>[] = useMemo(() => {
@@ -105,9 +126,12 @@ export function MindCanvas({ map }: { map: MindMap }) {
       const cutHit = hits.has(e.id);
       const bar = singleEdge === e.id && tool === "select";
       const dep = e.kind === "needs" ? e.dep ?? "fs" : undefined;
-      const faded = plan.act.inactive.has(e.target) || (e.kind !== "branch" && plan.act.inactive.has(e.source));
+      const faded = plan.act.inactive.has(e.target) || (e.kind !== "branch" && plan.act.inactive.has(e.source)) ||
+        (!!lit && (!lit.has(e.source) || !lit.has(e.target)));
       const critical = settings.showCritical && e.kind === "needs" && plan.criticalPairs.has(`${e.source}>${e.target}`);
       const met = e.kind === "needs" && !(plan.blockers.get(e.target) ?? []).some((b) => b.edgeId === e.id);
+      const glowing = !!glow && glow.has(e.source) && glow.has(e.target);
+      const toDone = idx.byId.get(e.target)?.status === "done";
       // Keep the same object when nothing about the edge changed, so React Flow
       // skips it -- a 600-node map otherwise re-renders every edge per keystroke.
       const old = cache.get(e.id);
@@ -115,13 +139,13 @@ export function MindCanvas({ map }: { map: MindMap }) {
           old.selected === selected && old.data!.from === from && old.data!.to === to &&
           old.data!.width === width && old.data!.label === e.label && old.data!.cutHit === cutHit &&
           old.data!.bar === bar && old.data!.dep === dep && old.data!.faded === faded && old.data!.critical === critical &&
-          old.data!.met === met) return old;
+          old.data!.met === met && old.data!.glow === glowing && old.data!.toDone === toDone) return old;
       const next: Edge<EdgeData> = { id: e.id, source: e.source, target: e.target, type: e.kind, selected,
-        data: { kind: e.kind, from, to, width, label: e.label, cutHit, bar, dep, faded, critical, met } };
+        data: { kind: e.kind, from, to, width, label: e.label, cutHit, bar, dep, faded, critical, met, glow: glowing, toDone } };
       cache.set(e.id, next);
       return next;
     });
-  }, [map, idx, colors, selectedEdges, cutHits, singleEdge, tool, hidden, plan, settings.showCritical]);
+  }, [map, idx, colors, selectedEdges, cutHits, singleEdge, tool, hidden, plan, settings.showCritical, lit, glow]);
 
   // Remember what was on screen, so an auto-arrange can glide from there.
   useEffect(() => { shown.current = new Map(nodes.map((n) => [n.id, n.position])); });
@@ -282,8 +306,16 @@ export function MindCanvas({ map }: { map: MindMap }) {
         onConnectEnd={onConnectEnd} connectionMode={ConnectionMode.Loose} connectionRadius={36}
         connectionLineStyle={{ stroke: "var(--accent)", strokeWidth: 2, strokeDasharray: "6 4" }}
         onNodeDragStart={(_, __, dragged) => useApp.getState().beginDrag(dragged.map((d) => d.id))}
-        onNodeDragStop={() => useApp.getState().endDrag()}
+        onNodeDrag={(e, _, dragged) => {
+          const s = useApp.getState();
+          const pt = "touches" in e ? e.touches[0] : e;
+          const target = dragged.length === 1 && pt ? dropOn(map, idx, dragged[0].id, rf.screenToFlowPosition({ x: pt.clientX, y: pt.clientY }), hidden) : null;
+          if (target !== s.dropTarget) s.set({ dropTarget: target });
+        }}
+        onNodeDragStop={() => useApp.getState().endDrag(useApp.getState().dropTarget)}
         onNodeDoubleClick={(_, n) => useApp.getState().startEdit(n.id)}
+        onNodeMouseEnter={(_, n) => setHovered(n.id)}
+        onNodeMouseLeave={() => setHovered(null)}
         onNodeClick={(_, n) => {
           const s = useApp.getState();
           if (s.linkFrom && s.linkFrom !== n.id) {
@@ -303,12 +335,24 @@ export function MindCanvas({ map }: { map: MindMap }) {
         aria-label="Mind map canvas"
       >
         <Background variant={BackgroundVariant.Dots} gap={C.ui.grid_gap} size={1.6} color={dot} />
-        {settings.minimap && (
-          <MiniMap pannable zoomable nodeColor={miniColor} nodeStrokeWidth={0} nodeBorderRadius={8}
-                   maskColor={mask} style={{ width: 176, height: 118 }} ariaLabel="Overview" />
-        )}
+        <SmartMiniMap nodeColor={miniColor} maskColor={mask} />
       </ReactFlow>
       {tool === "cut" && <CutLayer onHits={setCutHits} />}
     </div>
   );
+}
+
+/**
+ * The node a dragged node would move under: the one under the pointer -- never
+ * itself, anything in its own branch, or the parent it already has.
+ */
+function dropOn(map: MindMap, idx: ReturnType<typeof index>, id: string, p: { x: number; y: number }, hidden: Set<string>): string | null {
+  const own = new Set([id, ...descendants(id, idx), ...(idx.parents.get(id) ?? [])]);
+  for (let i = map.nodes.length - 1; i >= 0; i--) {                 // topmost first
+    const n = map.nodes[i];
+    if (own.has(n.id) || hidden.has(n.id)) continue;
+    const s = sizeOf(n);
+    if (p.x >= n.x && p.x <= n.x + s.w && p.y >= n.y && p.y <= n.y + s.h) return n.id;
+  }
+  return null;
 }

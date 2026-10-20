@@ -146,6 +146,17 @@ test("git clone: the classic board's Update now turns it into Kanaban Mind, ever
   await expect(classic.locator("#versionTag")).toBeVisible();
   const served = await (await classic.request.get(`http://127.0.0.1:${port}/api/board`)).json();
   expect(cardsOf(served)).toEqual(cardsOf(board));
+  // read-only after the move: a banner, and a save is refused -- board.json cannot change by mistake
+  await expect(classic.getByTestId("classic-read-only")).toBeVisible();
+  const refused = await classic.request.post(`http://127.0.0.1:${port}/api/board`, { data: served });
+  expect(refused.status()).toBe(423);
+  expect(sha(join(app, "board.json"))).toBe(before);
+  await classic.screenshot({ path: "tests/screenshots/update-classic-read-only.png" });
+  await classic.getByRole("button", { name: "Allow editing" }).click();
+  await classic.waitForLoadState("load");
+  await expect(classic.getByTestId("classic-read-only")).toHaveCount(0);
+  await expect(classic.locator("#versionTag")).toBeVisible();
+  await classic.request.put(`http://127.0.0.1:${port}/api/settings`, { data: { classicEditable: false } });
   await classic.close();
 
   // A restart does not import a second time.

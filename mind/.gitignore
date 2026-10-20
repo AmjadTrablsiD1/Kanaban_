@@ -36,6 +36,7 @@ scratch/
 # --- Kanaban Mind ---
 # e2e runs get a throwaway data folder; your real maps live in ~/.config/kanaban-mind
 .e2e-data/
+.e2e-state/
 # never commit anyone's real Kanban board or maps
 board.json
 maps/

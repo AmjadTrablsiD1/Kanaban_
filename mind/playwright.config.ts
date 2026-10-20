@@ -21,7 +21,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
   webServer: {
     command:
-      `rm -rf .e2e-data && KANABAN_MIND_DATA=.e2e-data ` +
+      `rm -rf .e2e-data .e2e-state && KANABAN_MIND_DATA=.e2e-data KANABAN_MIND_STATE=.e2e-state ` +
       `KANABAN_MIND_KANBAN_BOARD=tests/fixtures/board.sample.json ` +
       `${process.env.KM_PYTHON ?? ".venv/bin/python3"} main.py --no-browser --port ${PORT}`,
     url: `http://127.0.0.1:${PORT}/api/whoami`,

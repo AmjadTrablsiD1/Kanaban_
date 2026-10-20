@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { edgeMiddle, MOD, mapByName, node, saved, select as selectNode } from "./helpers";
+import { edgeMiddle, MOD, mapByName, node, saved, select as selectNode, dockTool } from "./helpers";
 
 // Planning with conditions, driven through the real UI. Each test sets up its
 // own small map through the API (the maps below are plans, not Kanban data),
@@ -107,7 +107,7 @@ test("4e · plan: dependencies, warn / strict, dependency types, dates, critical
     await page.getByTestId("plan-estimate").fill(d);
     await page.keyboard.press("Escape");
   }
-  await page.getByTestId("dock-critical").click();
+  await (await dockTool(page, "dock-critical")).click();
   for (const t of ["TOEFL", "Apply", "Immatrikulation"]) await expect(node(page, t).locator(".mn")).toHaveClass(/critical/);
   await page.keyboard.press("f");
   await page.waitForTimeout(400);
@@ -148,7 +148,7 @@ test("4e · plan: dependencies, warn / strict, dependency types, dates, critical
     await page.keyboard.press("Escape");
   }
   await pickTheme("midnight");
-  await page.getByTestId("dock-critical").click();
+  await (await dockTool(page, "dock-critical")).click();
   await saved(page);
 });
 

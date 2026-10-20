@@ -42,8 +42,10 @@ EDGE_KINDS: list[str] = list(C.edges.kinds)
 
 
 def path(key: str) -> Path:
-    """A constant from `paths`, with ~ expanded and the folder created."""
-    p = Path(C["paths"][key]).expanduser()
+    """A constant from `paths`, with ~ expanded and the folder created.
+    The state folder has an override too, so tests never touch the real one."""
+    override = os.environ.get(C.paths.state_dir_env) if key == "state_dir" else None
+    p = Path(override).expanduser() if override else Path(C["paths"][key]).expanduser()
     p.mkdir(parents=True, exist_ok=True)
     return p
 

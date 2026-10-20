@@ -3,9 +3,10 @@
 // canvas only lays out, selects and frames -- the owner decides what a click,
 // Space or double-click does to the real node.
 import {
-  Background, BackgroundVariant, MiniMap, ReactFlow, useReactFlow,
+  Background, BackgroundVariant, ReactFlow, useReactFlow,
   type Edge, type Node, type NodeChange,
 } from "@xyflow/react";
+import { SmartMiniMap } from "./SmartMiniMap";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { C, spacingFactor } from "../constants";
 import { branchColors } from "../core/colors";
@@ -47,7 +48,6 @@ export function LiveCanvas(p: LiveCanvasProps) {
   const rf = useReactFlow();
   const selected = useApp((s) => s.selectedNodes);
   const theme = useApp((s) => s.settings.theme);
-  const minimap = useApp((s) => s.settings.minimap);
   const focus = useApp((s) => s.focus);
   const [measureTick, setMeasureTick] = useState(0);
 
@@ -144,9 +144,7 @@ export function LiveCanvas(p: LiveCanvasProps) {
         proOptions={{ hideAttribution: true }} aria-label={p.label}
       >
         <Background variant={BackgroundVariant.Dots} gap={C.ui.grid_gap} size={1.6} color={dot} />
-        {minimap && <MiniMap pannable zoomable nodeStrokeWidth={0} nodeBorderRadius={8}
-                              nodeColor={(n) => p.minimapColor(n.id, colors.get(n.id))}
-                              maskColor={mask} style={{ width: 176, height: 118 }} ariaLabel="Overview" />}
+        <SmartMiniMap nodeColor={(n) => p.minimapColor(n.id, colors.get(n.id))} maskColor={mask} />
       </ReactFlow>
       {p.children}
     </div>

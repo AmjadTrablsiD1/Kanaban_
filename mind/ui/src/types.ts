@@ -21,6 +21,7 @@ export interface MindNode {
   due?: string;                     // YYYY-MM-DD
   after?: string;                   // YYYY-MM-DD: not before this day
   p3?: [number, number, number];    // where it was placed in 3D
+  folded?: boolean;                 // its branch is folded away (2D, outline)
 }
 
 export interface MindEdge {
@@ -40,6 +41,7 @@ export interface MindMap {
   emoji: string;
   createdAt: string;
   updatedAt: string;
+  rev?: string;                     // the file's revision on disk (two PCs, one folder)
   viewport: Viewport;
   nodes: MindNode[];
   edges: MindEdge[];
@@ -49,7 +51,6 @@ export interface Settings {
   theme: string;
   saveOnExit: boolean;
   sidebarOpen: boolean;
-  minimap: boolean;
   snapToGrid: boolean;
   showNotes: boolean;
   view: string;
@@ -64,6 +65,15 @@ export interface Settings {
   layout3d: string;
   labels3d: string;
   remember3d: boolean;
+  look: string;                     // "quiet" | "classic"
+  minimapMode: string;              // "auto" | "always" | "never"
+  doingLimit: number;
+  doingMode: string;                // "off" | "warn" | "strict"
+  classicEditable: boolean;         // the old board at /classic may be edited
+  lighting: string;                 // "off" | "soft" | "neon": nodes and lines give off light
+  activeBranch: boolean;            // the branch you select or point at lights up
+  doingGlow: boolean;               // tasks in Doing pulse with light
+  doneFades: boolean;               // done tasks lose their colour and light
 }
 
 export interface ServerState {
@@ -75,5 +85,5 @@ export interface ServerState {
   settingsFileExists: boolean;
   problems: string[];
   firstRunImport: Record<string, number> | null;
-  info: { dataDir: string; version: string; kanbanPath: string; kanbanReadable: boolean };
+  info: { dataDir: string; defaultDataDir: string; version: string; kanbanPath: string; kanbanReadable: boolean };
 }

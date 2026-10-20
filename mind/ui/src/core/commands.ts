@@ -306,3 +306,73 @@ export function setEdgeLabel(map: MindMap, id: string, label: string): Result {
     return next;
   })) };
 }
+
+/** Fold or unfold branches. Leaves (nothing to fold) are left alone; unfolding drops the field. */
+export function setFolded(map: MindMap, ids: string[], folded: boolean): Result {
+  const idx = index(map);
+  const want = new Set(ids.filter((id) => folded ? (idx.children.get(id)?.length ?? 0) > 0 : true));
+  let changed = 0;
+  const nodes = map.nodes.map((n) => {
+    if (!want.has(n.id) || !!n.folded === folded) return n;
+    changed++;
+    if (folded) return { ...n, folded: true };
+    const next = { ...n };
+    delete next.folded;
+    return next;
+  });
+  if (!changed) return { map, error: folded && ids.length && !want.size ? "Nothing to fold: it has no branch under it." : undefined };
+  return { map: withNodes(map, nodes), note: `${changed} branch${changed === 1 ? "" : "es"}` };
+}
+
+/** Fold if any of them is open, otherwise unfold -- one key for both. */
+export function toggleFold(map: MindMap, ids: string[]): Result {
+  const nodes = map.nodes.filter((n) => ids.includes(n.id));
+  if (!nodes.some((n) => map.edges.some((e) => e.kind === "branch" && e.source === n.id)))
+    return { map, error: "Nothing to fold: it has no branch under it." };
+  const anyOpen = nodes.some((n) => !n.folded && map.edges.some((e) => e.kind === "branch" && e.source === n.id));
+  return setFolded(map, ids, anyOpen);
+}
+
+/**
+ * Move a node (with its branch) under another one: the drop target on the canvas,
+ * Tab / Shift+Tab in the outline. `after` puts it right below that sibling (null:
+ * first; undefined: last). Cross-links and "needs" stay as they are.
+ */
+export function moveUnder(map: MindMap, id: string, parent: string | null, after?: string | null): Result {
+  const idx = index(map);
+  const n = idx.byId.get(id);
+  if (!n) return { map, error: "That node no longer exists." };
+  if (parent !== null && !idx.byId.has(parent)) return { map, error: "That node no longer exists." };
+  if (parent === id || (parent !== null && descendants(id, idx).includes(parent)))
+    return { map, error: "A node cannot move under its own branch." };
+  const edges = map.edges.filter((e) => !(e.kind === "branch" && e.target === id));
+  const p = parent === null ? null : idx.byId.get(parent)!;
+  // Place it where auto-arrange will keep it: siblings are ordered by height on screen.
+  const siblings = parent === null ? [] : (idx.children.get(parent) ?? []).filter((k) => k !== id).map((k) => idx.byId.get(k)!);
+  const side = (k: { x: number }) => (p && k.x < p.x ? -1 : 1);
+  let y: number;
+  let x: number;
+  if (after) {
+    const a = idx.byId.get(after);
+    y = (a?.y ?? n.y) + 0.5;
+    x = a?.x ?? n.x;
+  } else if (after === null && siblings.length) {
+    const first = siblings.reduce((m, s) => (s.y < m.y ? s : m));
+    y = first.y - 0.5;
+    x = first.x;
+  } else {
+    y = siblings.length ? Math.max(...siblings.map((s) => s.y)) + 0.5 : (p?.y ?? n.y);
+    x = siblings.length ? siblings[siblings.length - 1].x : p ? p.x + (side(n) === -1 ? -1 : 1) * 220 : n.x;
+  }
+  const dx = x - n.x;
+  const dy = y - n.y;
+  const moving = new Set([id, ...descendants(id, idx)]);
+  const nodes = map.nodes.map((k) => (moving.has(k.id) ? { ...k, x: k.x + dx, y: k.y + dy } : k));
+  let next = edges;
+  if (parent !== null) {
+    const edge: MindEdge = { id: newId("e"), source: parent, target: id, kind: "branch" };
+    const at = after ? next.findIndex((e) => e.kind === "branch" && e.target === after) : -1;
+    next = at >= 0 ? [...next.slice(0, at + 1), edge, ...next.slice(at + 1)] : [...next, edge];
+  }
+  return { map: { ...map, nodes, edges: next }, nodeId: id };
+}

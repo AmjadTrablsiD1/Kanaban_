@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 from app.constants import C
-from app.schema import clean_map, now_iso, valid_id
+from app.schema import clean_map, new_id, now_iso, valid_id
 
 
 _write_lock = threading.Lock()
@@ -77,6 +77,8 @@ class Store:
         self.maps_dir.mkdir(parents=True, exist_ok=True)
         # Problems found while reading, so the UI can say "1 map could not be read".
         self.problems: list[str] = []
+        # (mtime, size) -> rev of each map file, so watching a synced folder stays cheap
+        self._revs: dict[str, tuple[float, int, str]] = {}
 
     # ------------------------------------------------------------ maps
     def _map_path(self, map_id: str) -> Path:
@@ -113,17 +115,83 @@ class Store:
         return m
 
     def save_map(self, raw: dict) -> tuple[dict, list[str]]:
+        m, repairs, _ = self.save_checked(raw)
+        return m, repairs
+
+    def save_checked(self, raw: dict, base: str | None = None) -> tuple[dict, list[str], dict | None]:
+        """Write a map. `base` is the revision the edit started from: if the file has
+        moved on since (another PC wrote it through a synced folder), its version is
+        kept as a map of its own before this one is written -- both survive. Returns
+        the map, its repairs, and that copy (or None)."""
         m, repairs = clean_map(raw)
         path = self._map_path(m["id"])
+        conflict = None
         if path.exists():
+            if base:
+                theirs = self.rev_of(m["id"])
+                if theirs and theirs != base:
+                    conflict = self._keep_theirs(m["id"])
             self._maybe_backup(m["id"], path)
         m["updatedAt"] = now_iso()
+        m["rev"] = new_id("r")
         _atomic_write(path, m)
+        try:                                          # our own write: no need to read it back
+            st = path.stat()
+            self._revs[m["id"]] = (st.st_mtime, st.st_size, m["rev"])
+        except OSError:
+            pass
         ws = self.workspace()
         if m["id"] not in ws["order"]:
             ws["order"].append(m["id"])
             self.save_workspace(ws)                  # the file exists now, so it is kept
-        return m, repairs
+        return m, repairs, conflict
+
+    # ------------------------------------------------------------ two PCs, one folder
+    def rev_of(self, map_id: str) -> str | None:
+        """The revision of the file on disk (cached by mtime and size)."""
+        path = self._map_path(map_id)
+        try:
+            st = path.stat()
+        except OSError:
+            return None
+        hit = self._revs.get(map_id)
+        if hit and hit[0] == st.st_mtime and hit[1] == st.st_size:
+            return hit[2]
+        try:
+            raw = _read_json(path)
+        except (OSError, ValueError, json.JSONDecodeError):
+            return None
+        rev = raw.get("rev") if isinstance(raw, dict) and valid_id(raw.get("rev")) else \
+            f"t{int(st.st_mtime * 1e6):x}"                        # written by an app without revisions
+        self._revs[map_id] = (st.st_mtime, st.st_size, rev)
+        return rev
+
+    def _keep_theirs(self, map_id: str) -> dict | None:
+        """The other PC's version of a map, saved as a map of its own, named so you can tell."""
+        theirs = self.get_map(map_id)
+        if not theirs:
+            return None
+        stamp = time.strftime("%Y-%m-%d %H:%M")
+        theirs["id"] = new_id("m")
+        theirs["name"] = (theirs["name"] + C.sync.conflict_suffix.format(stamp=stamp))[: C.limits.max_text_len]
+        copy, _ = self.save_map(theirs)
+        return copy
+
+    def changes(self, known: dict) -> dict:
+        """What differs from what a window holds: maps changed or added on disk, maps gone."""
+        changed, removed = [], []
+        on_disk = set(self._map_ids())
+        for map_id in sorted(on_disk):
+            rev = self.rev_of(map_id)
+            if rev and known.get(map_id) != rev:
+                try:
+                    m = self.get_map(map_id)
+                except (OSError, ValueError, json.JSONDecodeError):
+                    continue
+                if m:
+                    changed.append(m)
+        removed = [i for i in known if valid_id(i) and i not in on_disk]
+        return {"changed": changed, "removed": removed}
 
     def delete_map(self, map_id: str) -> bool:
         """Deleting keeps a last copy in backups -- a mis-click must be recoverable."""

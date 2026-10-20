@@ -45,6 +45,13 @@ Dependencies point one way. `app/` runs and is tested with the server absent.
 | progress roll-up, cycle check, keyboard navigation, undo, branch colours | `ui/src/core/` | must answer inside one frame while typing |
 | the Kanban board of a map: tabs, columns, cards, drag = status / re-parent | `ui/src/core/board.ts` (pure), `ui/src/board/BoardView.tsx` | a view of the same map, edited through `apply` like the canvas: nothing to sync |
 | the live maps "Everything done" / "Everything to do" (centre → map → board → tasks) | `ui/src/core/done.ts::taskTree`, `core/todo.ts` | one grouping for both, rebuilt from the maps on every change; never stored |
+| what the canvas leaves out (folded branches, done work) | `core/fold.ts`, `core/done.ts`, joined in `store/app.ts::hiddenIn` | one set feeds the canvas *and* auto-arrange, so a fold closes the gap |
+| moving a node under another (drag onto it; Tab / ⇧Tab in the outline) | `core/commands.ts::moveUnder` | one command, one undo step, refuses its own branch |
+| the outline's order | `core/outline.ts` | the same order auto-arrange shows (clockwise round a root), so the two views agree |
+| the doing limit | `core/wip.ts`, checked in `store/app.ts::passesGate` | counted over every map; only changes that *add* doing work are stopped |
+| the Timeline | `core/timeline.ts` (pure, two worked examples), drawn by `timeline/TimelineView.tsx` | built live from the plan, never stored |
+| two PCs: bundles, the maps folder, conflicts, changes | `app/bundle.py`, `app/location.py`, `app/store.py::save_checked / changes` | disk is Python's job; every map file carries a `rev`, every save sends the `rev` it started from |
+| the look (Quiet / Classic) | CSS only (`index.css`, `.look-quiet`), plus the dock's table in `Chrome.tsx::Dock` | a look is a skin over the same components |
 
 ## Data flow — "Tab adds a child"
 
@@ -129,6 +136,12 @@ reveals it in Finder.
    `Sidebar.tsx`, a key in `registry.ts`, and the id in `server/api.py::state` so it can reopen.
 3. The 3D view works unchanged: give it the built map.
 
+**A new dock tool**:
+1. One entry in `components/Chrome.tsx::Dock` → `items` (label, icon, key, `primary` if it
+   belongs in the Quiet dock itself, `edit` if live maps should not show it).
+2. If it has a key, a command in `commands/registry.ts`, so ⌘K and Settings list it.
+3. Classic shows every entry; Quiet shows the primary ones and lists the rest under More.
+
 **A new theme**:
 1. Copy a block in `shared/themes.json` (a dark one for a dark theme), rename it,
    change its colours, `palette` (branch colours) and `pair` (its other side — set
@@ -182,6 +195,23 @@ in `layout3d()` + an entry in `constants.json → view3d.layouts` + a test in
 | connection dots mounted only on hover / selection | 4 handles × 600 nodes = 2 400 store subscriptions; with one hidden anchor per node for edges, opening a 600-node map went from 2.6 s to ~2 s | always-on handles |
 
 ## Known sharp edges
+
+- **The light is its own layer** (`.mn::after`, `z-index: -1`): node styles set `box-shadow`
+  for borders and selection, and the Quiet look clears it; a separate layer cannot be
+  switched off by them. *Done fades* uses `saturate()` and no `opacity`, so done text keeps
+  its contrast (axe checks it in both themes).
+
+- **"This PC's own folder" honours the data-folder override** (`location.default()`):
+  without it, "back to this PC's folder" in a test run would have merged test maps into
+  the real `~/.config/kanaban-mind` (caught while writing the e2e test, before it ran).
+  The state folder (where the chosen folder is remembered) has its own override too.
+- **Conflicts compare revisions, not dates**: `updatedAt` has one-second resolution, so
+  two saves in one second looked the same; every save now writes a fresh `rev`.
+- **Quiet node styles need the extra weight** (`.app.look-quiet .stage .mn…`): the
+  Colourful rule outranked them and the boxes stayed (seen in the first screenshot).
+- **The selection toolbar picks its spot from React Flow's own node list** (measured
+  sizes), tries eight spots, and is pinned under the top bar when all are taken; the
+  Q2 test checks every node of a map.
 
 - **Connection toolbars sit above the nodes** (`.edge-bar { z-index }`): a connection
   often runs under a node, and its toolbar was drawn behind it (found by the e2e run).

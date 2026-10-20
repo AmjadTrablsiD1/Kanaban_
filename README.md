@@ -3,6 +3,23 @@
 A simple, beautiful Kanban board that runs on any platform (Windows, macOS, Linux).
 No installation needed — only Python 3, which is already on most systems.
 
+## New in 2.1
+
+- **Quiet** is the new look (the colours stay): a plain top bar, a dock with six tools
+  and **More** for the rest, nodes as text on a line in their branch colour, and a node
+  toolbar that never covers another node. *Settings → Look → Classic* brings 2.0 back.
+- **Lighting**: nodes and lines give off light in their branch colour (Soft, Neon or Off);
+  the branch you point at lights up, tasks in *Doing* glow, done tasks fade.
+- **Fold** a branch away (<kbd>.</kbd>), **Zen** (<kbd>Z</kbd>) and **Focus** (<kbd>⇧F</kbd>),
+  drag a node **onto another** to move it there, the **Outline** (<kbd>O</kbd>), quick
+  capture to an **Inbox** (<kbd>I</kbd>), a **Timeline** of every due date (<kbd>W</kbd>) and a
+  limit on how much is *doing* at once (*Settings → Planning*, off by default).
+- **Your maps on both PCs** (*Settings → Your data*): export every map to one file and
+  import it on the other PC (the newer version of a map wins, the older one is kept in
+  backups), or point both PCs at one synced folder (OneDrive, iCloud, Dropbox).
+- The **classic board** at `/classic` is read-only now, so nothing is typed into the
+  board that no longer feeds the maps. *Settings → Version & updates* can allow editing.
+
 ## New in 2.0: Kanaban Mind
 
 The start page is now **Kanaban Mind** — your boards as mind maps (in the `mind/` folder):

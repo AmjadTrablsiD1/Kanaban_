@@ -50,6 +50,16 @@
       + any colour + ∅) -- the Sept 24 version had it; the merge into the planning branch
       had dropped it, so a chosen colour showed only as a faint tint. Test 4a guards it
 
+- [x] 2026-10-21 Quiet look as the default (Classic in Settings): plain top bar, dimmer sidebar,
+      six-tool dock + More, nodes as text on a coloured line (tinted), overview only when needed,
+      a selection toolbar that never covers a node; fold (.), Zen (Z), Focus (⇧F), drag onto a
+      node to move it under it, the outline (O), quick capture to an Inbox (I), the doing limit,
+      the Timeline (W); two PCs: export / import bundles, a synced maps folder, both versions
+      kept on a conflict, other-PC changes appear live; the classic board read-only
+
+- [x] 2026-10-24 Lighting (Off / Soft / Neon, in the branch colour; a shadow in light themes) and
+      active colouring: the selected or pointed-at branch lights up, doing tasks pulse, done fades
+
 ## Doing
 - [ ] Nothing in progress
 
@@ -57,13 +67,12 @@
 0. [ ] Links between maps — waiting on: link to a map, a node in another map, or both; and what
        happens when the target is deleted
 0b. [ ] Re-order cards inside a board column by dragging (today the order is the mind map's)
-1. [ ] Collapse / expand a branch — big maps get noisy; hide what you are not working on
-2. [ ] Drag a node onto another to re-parent it — faster than cutting and re-linking
 3. [ ] Export a map as PNG / SVG / Markdown outline — to share a plan outside the app
 5. [ ] Faster first open of very large maps (600 nodes: ~2 s) — virtualise off-screen nodes
 6. [ ] Edit in 3D (rename, status) — the 3D view is view-first
-7. [ ] Lead / lag days on dependencies, and a calendar or timeline view of due dates
-8. [ ] Keep a selected node's toolbar off the node above it
+7. [ ] Lead / lag days on dependencies; drag a bar on the Timeline to change its dates
+8. [ ] Fold in 3D and on the board too (today both show folded branches open)
+9. [ ] Merge a two-PC conflict node by node instead of keeping both maps
 
 ## Someday
 - [ ] Sync with the old Kanaban app's `board.json`, for the other PCs that still run it (the board

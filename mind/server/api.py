@@ -23,16 +23,17 @@ from pathlib import Path
 from typing import Callable, Dict, Optional, Tuple
 from urllib.parse import unquote
 
-from app import bootstrap
-from app.constants import C, ROOT, data_dir
+from app import bootstrap, bundle, location
+from app.constants import C, ROOT
 from app.importers import REGISTRY as IMPORTERS
-from app.schema import counts, empty_map, valid_id
+from app.schema import counts, empty_map, now_iso, valid_id
 from app.store import Store
 
 DIST = ROOT / "ui" / "dist"
 MAX_BODY = int(C.server.max_body_mb * 1024 * 1024)
 
 INSTANCE_HEADER = "X-Kanaban-Instance"
+BASE_HEADER = "X-Kanaban-Base"          # the revision an edit started from (two PCs, one folder)
 STALE = ("This window belongs to an earlier start of Kanaban Mind, so nothing was saved "
          "from it. Reload the page to carry on with the current maps.")
 
@@ -84,7 +85,8 @@ class MindApp:
     """The whole API, independent of any server -- kanban.py mounts it beside the classic board."""
 
     def __init__(self) -> None:
-        self.store = Store(data_dir())
+        folder, self.location_problem = location.resolve()
+        self.store = Store(folder)
         # A new value every start. A browser window from an earlier start sends the
         # old one with its writes, and is refused instead of overwriting newer data.
         self.instance = secrets.token_hex(8)
@@ -103,11 +105,11 @@ class MindApp:
             if method in ("POST", "PUT", "DELETE") and sent and sent != self.instance:
                 raise HTTPError(409, STALE, stale=True)
             parts = [unquote(p) for p in path[len("/api/"):].split("/")]
-            return self._api(method, parts, body)
+            return self._api(method, parts, body, headers)
         except HTTPError as err:
             return _json(err.status, dict({"detail": err.detail}, **err.extra))
 
-    def _api(self, method: str, parts: list, body: bytes) -> Reply:
+    def _api(self, method: str, parts: list, body: bytes, headers=None) -> Reply:
         s = self.store
         route: Dict[Tuple[str, str], Callable[[], object]] = {
             ("GET", "whoami"): self.whoami,
@@ -120,6 +122,8 @@ class MindApp:
             ("PUT", "settings"): lambda: {"settings": s.save_settings(_body(body)), "fileExists": True},
             ("DELETE", "settings"): lambda: {"settings": s.reset_settings(), "fileExists": False},
             ("POST", "reveal"): self.reveal,
+            ("POST", "changes"): lambda: s.changes(_body(body, {}).get("known") or {}),
+            ("POST", "datadir"): lambda: self.switch_folder(_body(body)),
             # Inside the Kanban board, kanban.py answers this with its updater before we see it.
             # Started on its own there is none -- say so, rather than a 404 in the console.
             ("GET", "update"): lambda: {"version": C.app.version, "latest": None, "updateAvailable": False,
@@ -128,9 +132,13 @@ class MindApp:
         head = "/".join(parts)
         if (method, head) in route:
             return _json(200, route[(method, head)]())
+        if method == "GET" and head == "export":
+            out = json.dumps(bundle.export_bundle(s), ensure_ascii=False, indent=1).encode("utf-8")
+            name = C.sync.bundle_name.format(date=now_iso()[:10])
+            return 200, out, TYPES[".json"], {"Content-Disposition": f'attachment; filename="{name}"'}
         if parts[0] == "maps" and len(parts) == 2:
             if method == "PUT":
-                return _json(200, self.save_map(parts[1], _body(body)))
+                return _json(200, self.save_map(parts[1], _body(body), (headers or {}).get(BASE_HEADER)))
             if method == "DELETE":
                 if not s.delete_map(_id_or_404(parts[1])):
                     raise HTTPError(404, "no such map")
@@ -154,7 +162,7 @@ class MindApp:
         maps = s.list_maps()
         ws = s.workspace()
         # the live views ("Everything done", "Everything to do", "Next up") have no file of their own
-        keep = ws["activeMapId"] in (C.done_view.id, C.todo_view.id, C.next_view.id) and maps
+        keep = ws["activeMapId"] in (C.done_view.id, C.todo_view.id, C.next_view.id, C.timeline.id) and maps
         active = ws["activeMapId"] if keep or any(m["id"] == ws["activeMapId"] for m in maps) else (
             maps[0]["id"] if maps else None)
         with self._news_lock:
@@ -166,9 +174,9 @@ class MindApp:
             "centreName": ws["centreName"],
             "settings": s.settings(),
             "settingsFileExists": s.has_settings_file(),
-            "problems": s.problems,
+            "problems": s.problems + ([self.location_problem] if self.location_problem else []),
             "firstRunImport": news,
-            "info": {"dataDir": str(s.root), "version": C.app.version,
+            "info": {"dataDir": str(s.root), "defaultDataDir": str(location.default()), "version": C.app.version,
                      "kanbanPath": str(bootstrap.kanban_path()),
                      "kanbanReadable": bootstrap.kanban_readable()},
         }
@@ -177,15 +185,40 @@ class MindApp:
     def _name(body: dict) -> str:
         return str(body.get("name") or "New map").strip()[: C.limits.max_text_len] or "New map"
 
-    def save_map(self, map_id: str, body: dict) -> dict:
+    def save_map(self, map_id: str, body: dict, base: Optional[str] = None) -> dict:
         _id_or_404(map_id)
         if body.get("id") != map_id:
             raise HTTPError(400, "the map id in the address and the body differ")
         try:
-            m, repairs = self.store.save_map(body)
+            m, repairs, conflict = self.store.save_checked(body, base if valid_id(base) else None)
         except ValueError as exc:
             raise HTTPError(422, str(exc)) from None
-        return {"ok": True, "updatedAt": m["updatedAt"], "repairs": repairs, "counts": counts(m)}
+        return {"ok": True, "updatedAt": m["updatedAt"], "rev": m["rev"], "repairs": repairs,
+                "counts": counts(m), "conflict": conflict}
+
+    def switch_folder(self, body: dict) -> dict:
+        """Use another folder for the maps (a synced one, or this PC's own again).
+        Your maps are merged into it -- the newer of two versions wins, the other is
+        kept in backups -- and the folder you leave stays as it was."""
+        raw = str(body.get("path") or "").strip()
+        target = Path(raw).expanduser() if raw else location.default()
+        try:
+            location.check_folder(target)
+        except ValueError as exc:
+            raise HTTPError(422, str(exc)) from None
+        old = self.store
+        if target.resolve() == old.root.resolve():
+            return {"dataDir": str(old.root), "summary": {"added": 0, "updated": 0, "kept": 0, "same": 0}}
+        new = Store(target)
+        out = bundle.merge_maps(new, old.list_maps())
+        location.copy_side_files(old.root, target)
+        ws, mine = new.workspace(), old.workspace()
+        ws["order"] = ws["order"] + [i for i in mine["order"] if i not in ws["order"]]
+        ws["kanbanImportedAt"] = ws["kanbanImportedAt"] or mine["kanbanImportedAt"] or now_iso()
+        new.save_workspace(ws)
+        location.remember(target)
+        self.store, self.location_problem = new, None
+        return {"dataDir": str(target), "summary": out["summary"]}
 
     def import_default_kanban(self) -> dict:
         """Read the Kanban's own board.json -- only works where the system allows it."""
@@ -195,10 +228,18 @@ class MindApp:
         return bootstrap.import_into(self.store, bootstrap.kanban_path().read_bytes())
 
     def import_file(self, importer_id: str, raw: bytes) -> dict:
+        if importer_id == "auto":
+            # one Import button for both: maps from another PC, or a Kanban board.json
+            try:
+                importer_id = "bundle" if bundle.is_bundle(json.loads(raw)) else "kanban"
+            except (ValueError, UnicodeDecodeError):
+                importer_id = "kanban"                   # and let it say what is wrong
         importer = IMPORTERS.get(importer_id)
         if importer is None:
             raise HTTPError(404, f"no importer called {importer_id!r}")
         try:
+            if importer.merge:
+                return dict(importer.merge(self.store, raw), merged=True)
             return bootstrap.import_into(self.store, raw, importer.convert)
         except ValueError as exc:
             raise HTTPError(422, str(exc)) from None

@@ -74,7 +74,15 @@ Your maps are in `~/.config/kanaban-mind/` and are never touched by an install.
 | Plan a node | <kbd>P</kbd> (or the Workflow button): waits for, all / any / one of, question, dates |
 | Next up | <kbd>U</kbd> — what you can work on right now, from every map |
 | Critical path | <kbd>⇧C</kbd>, or the Route button in the dock |
-| Spacing | the ↔ button in the dock (or on the board), or *Settings → Spacing* |
+| Spacing | the dock's **More** menu (or the ↔ on the board), or *Settings → Spacing* |
+| Fold / unfold a branch | <kbd>.</kbd>, or the fold button in its toolbar; the **+N** badge opens it again |
+| Move a node under another | drag it onto that node (it lights up) and let go — <kbd>⌘Z</kbd> takes it back |
+| Zen | <kbd>Z</kbd> — only the map; the dock comes back near the bottom edge; <kbd>Z</kbd> or <kbd>Esc</kbd> returns |
+| Focus on one branch | select it, <kbd>⇧F</kbd> — everything else fades; <kbd>⇧F</kbd> or <kbd>Esc</kbd> again |
+| Outline | <kbd>O</kbd>, or **Outline** next to Board — the map as an indented list |
+| Quick capture | <kbd>I</kbd> from anywhere — lines go to the **Inbox** map |
+| Timeline | <kbd>W</kbd> — every dated task from every map on one strip of days |
+| Overview map | <kbd>M</kbd>; by default it only appears when the map is bigger than the screen |
 
 **Branches and links.** A *branch* is parent → child: it builds the tree and counts
 toward progress. A *link* is a dashed cross-connection between any two nodes — as
@@ -125,6 +133,38 @@ questions to answer, tasks nothing is waiting on — soonest first, overdue coun
 **critical path** is the chain of work that sets your finish date, by estimates or by
 number of steps (*Settings → Planning*).
 
+**The look.** *Quiet* (the default) keeps the colours but drops the frames: a plain
+top bar, a dimmer sidebar, nodes as text on a line in their branch colour (softly
+tinted while *Colourful nodes* is on), and a dock with six tools — select, scissors,
+new idea, undo, redo, fit — and **More** for the rest. A node's toolbar sits where it
+covers no other node, or under the top bar when there is no such place. *Classic*
+(*Settings → Look*) is the glass and boxes of 2.0, every tool in the dock.
+
+**Lighting** (*Settings → Look*): every node and connection gives off light in its branch
+colour — **Soft** (default), **Neon** or **Off**; light themes get a gentle coloured shadow
+instead. **Active colouring**: the branch you select or point at lights up with everything
+under it, tasks in *Doing* pulse gently, and done tasks lose their colour and light (their
+text stays readable). Each of the three has its own switch.
+
+**The outline** (<kbd>O</kbd>) is the same map as a list: <kbd>Enter</kbd> a new line,
+<kbd>Tab</kbd> / <kbd>⇧Tab</kbd> in / out, <kbd>↑</kbd> <kbd>↓</kbd> to move,
+<kbd>⌘Enter</kbd> done, <kbd>⌫</kbd> on an empty line deletes it. Folds are shared with
+the canvas.
+
+**The doing limit** (*Settings → Planning*): at most N tasks *doing* at once, over every
+map — **Warn** (with Undo), **Strict** (refused until one is done) or **Off** (default).
+
+**Two PCs.** *Settings → Your data*:
+- **Export all maps** saves one file; on the other PC, **Import maps…** merges it: maps
+  both have keep the newer version, the older one goes to `backups/`. Importing the
+  same file twice changes nothing.
+- **Maps folder**: point both PCs at one synced folder (OneDrive, iCloud Drive,
+  Dropbox). Your maps are copied in; the folder you leave stays as it was. Changes the
+  other PC makes appear within a few seconds. If both change the same map before it
+  syncs, both are kept — the other one as a map named "… (other PC, date)". If the
+  folder cannot be reached (drive not connected), the app says so and shows this PC's
+  own maps; it never starts an empty folder in its place.
+
 **3D.** *Settings → 3D view* (or the bar in the 3D view): **Cone tree** (default),
 **Organic**, **Radial**, **Layers**, **Sequence** (depth follows the needs chains) or
 **Sphere**; names **Smart** (when big enough on screen), **All**, **Top levels** or
@@ -160,10 +200,10 @@ cd ui && npm run dev                                  # Vite on :5173, proxying 
 Tests — all three layers, as run for this release:
 
 ```bash
-.venv/bin/python3 -m pytest -q            # core + API over real HTTP             (92 tests)
-cd ui && npx vitest run && cd ..          # graph core in TS                      (100 tests)
+.venv/bin/python3 -m pytest -q            # core + API over real HTTP, two-PC sync  (103 tests)
+cd ui && npx vitest run && cd ..          # graph core in TS                        (117 tests)
 npm install && KM_PYTHON=/usr/bin/python3 npx playwright test   # the real UI, on Python 3.9 with nothing installed,
-                                          # plus the Kanban 1.9 -> 2.0 update rehearsal (26 tests)
+                                          # plus the Kanban 1.9 -> 2.1 update rehearsal (33 tests)
 ```
 
 Architecture, the decisions behind it and the sharp edges: [ARCHITECTURE.md](ARCHITECTURE.md).
@@ -171,6 +211,12 @@ What is done and what is next: [TODO.md](TODO.md).
 
 ## Limitations
 
+- **Two PCs**: a synced folder relies on the cloud app to copy files; changes appear here
+  within ~5 s *after* they arrive. Conflicts are kept per map (both versions), never merged
+  node by node. Tested with two folders on one Mac, not with a real OneDrive between two PCs.
+- **The classic board** at `/classic` is read-only after the move (Settings → Version &
+  updates allows editing). Its cards do not reach the maps either way.
+- **Fold** works in 2D and the outline; the 3D view and the board show folded branches open.
 - **Windows**: never run on Windows. The update path (the Kanban's `Kanban.bat` → `kanban.py`)
   is the same code the classic board already ran there, and was rehearsed on macOS; the server
   avoids the known Windows traps (content types, file replace), but no Windows machine was used.

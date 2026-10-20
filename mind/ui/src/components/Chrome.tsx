@@ -2,7 +2,7 @@
 // hint banner for the modes (connecting, cutting).
 import { useReactFlow, useViewport } from "@xyflow/react";
 import {
-  ArrowLeft, Box, Eye, EyeOff, Hand, LayoutGrid, Maximize2, Minus, ListTodo, MousePointer2, PanelLeftOpen, Rocket, Route, SquareKanban, UnfoldHorizontal, Plus, Redo2,
+  ArrowLeft, Box, CalendarRange, Expand, Eye, EyeOff, Focus, Hand, LayoutGrid, ListTree, Maximize2, Minus, ListTodo, MoreHorizontal, MousePointer2, PanelLeftOpen, Rocket, Route, SquareKanban, UnfoldHorizontal, Plus, Redo2,
   Scissors, Sparkles, Trophy, Undo2, Wand2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -15,7 +15,7 @@ import type { DoneMap } from "../core/done";
 import type { NextMap } from "../core/next";
 import { CENTRE_ID, centreLabel, type TodoMap } from "../core/todo";
 import { mapProgress } from "../core/progress";
-import { DONE_VIEW, NEXT_VIEW, retrySaves, TODO_VIEW, useApp } from "../store/app";
+import { DONE_VIEW, NEXT_VIEW, retrySaves, TIMELINE_VIEW, TODO_VIEW, useApp } from "../store/app";
 import type { MindMap } from "../types";
 
 export function TopBar({ map }: { map: MindMap }) {
@@ -31,7 +31,7 @@ export function TopBar({ map }: { map: MindMap }) {
 
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-3 p-3">
-      <div className="glass pointer-events-auto flex h-12 min-w-0 items-center gap-3 rounded-[14px] pl-2 pr-4" data-testid="topbar">
+      <div className="glass pointer-events-auto flex h-12 min-w-0 items-center gap-3 rounded-[14px] pl-2 pr-4" data-chrome="top" data-testid="topbar">
         {!sidebarOpen && (
           <button className="icon-btn" title={`Show the map list (${MOD} B)`} aria-label="Show the map list"
                   onClick={() => useApp.getState().setSetting("sidebarOpen", true)}>
@@ -56,7 +56,7 @@ export function TopBar({ map }: { map: MindMap }) {
             {p.total ? `${Math.round(p.ratio * 100)}% done · ${p.done} of ${p.total} tasks` : "No tasks yet — only ideas"}
           </div>
         </div>
-        <div className="ml-2 hidden items-center gap-1 lg:flex" aria-label="Nodes by status">
+        <div className="topbar-chips ml-2 hidden items-center gap-1 lg:flex" aria-label="Nodes by status">
           {STATUS_ORDER.map((s) => (
             <span key={s} className="num flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold"
                   style={{ background: `var(--q-${s}-soft)`, color: `var(--q-${s})` }} title={STATUS[s].label}>
@@ -74,9 +74,9 @@ export function TopBar({ map }: { map: MindMap }) {
 
 function RightCluster({ save, error, view, live = false }: { save: "saved" | "saving" | "error"; error: string; view: string; live?: boolean }) {
   // The live maps ("Everything done / to do") have no board of their own: they stay 2D there.
-  const shown = live && view === "board" ? "2d" : view;
+  const shown = live && (view === "board" || view === "outline") ? "2d" : view;
   return (
-    <div className="glass pointer-events-auto flex h-12 items-center gap-3 rounded-[14px] px-3">
+    <div className="glass pointer-events-auto flex h-12 items-center gap-3 rounded-[14px] px-3" data-chrome="right">
       <UpdateChip />
       <SaveBadge state={save} error={error} />
       <div className="seg" role="group" aria-label="View">
@@ -92,6 +92,12 @@ function RightCluster({ save, error, view, live = false }: { save: "saved" | "sa
           <button className={shown === "board" ? "on" : ""} aria-pressed={shown === "board"} data-testid="view-board"
                   onClick={() => useApp.getState().setSetting("view", "board")} title="The classic Kanban board of this map (B)">
             <SquareKanban size={14} /> Board
+          </button>
+        )}
+        {!live && (
+          <button className={shown === "outline" ? "on" : ""} aria-pressed={shown === "outline"} data-testid="view-outline"
+                  onClick={() => useApp.getState().setSetting("view", "outline")} title="This map as an indented list (O)">
+            <ListTree size={14} /> Outline
           </button>
         )}
       </div>
@@ -115,7 +121,7 @@ export function DoneTopBar({ done }: { done: DoneMap }) {
   );
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-3 p-3">
-      <div className="glass pointer-events-auto flex h-12 min-w-0 items-center gap-3 rounded-[14px] pl-2 pr-4" data-testid="done-topbar">
+      <div className="glass pointer-events-auto flex h-12 min-w-0 items-center gap-3 rounded-[14px] pl-2 pr-4" data-chrome="top" data-testid="done-topbar">
         {back && (
           <button className="icon-btn" title={`Back to ${back} (D)`} aria-label={`Back to ${back}`}
                   onClick={() => { const s = useApp.getState(); if (s.returnMapId) s.openMap(s.returnMapId); }}>
@@ -163,7 +169,7 @@ export function TodoTopBar({ todo }: { todo: TodoMap }) {
   const finish = () => useApp.getState().setCentreName(name);
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-3 p-3">
-      <div className="glass pointer-events-auto flex h-12 min-w-0 items-center gap-3 rounded-[14px] pl-2 pr-4" data-testid="todo-topbar">
+      <div className="glass pointer-events-auto flex h-12 min-w-0 items-center gap-3 rounded-[14px] pl-2 pr-4" data-chrome="top" data-testid="todo-topbar">
         {back && (
           <button className="icon-btn" title={`Back to ${back} (A)`} aria-label={`Back to ${back}`}
                   onClick={() => { const s = useApp.getState(); if (s.returnMapId) s.openMap(s.returnMapId); }}>
@@ -215,7 +221,7 @@ export function NextTopBar({ next }: { next: NextMap }) {
   );
   return (
     <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-3 p-3">
-      <div className="glass pointer-events-auto flex h-12 min-w-0 items-center gap-3 rounded-[14px] pl-2 pr-4" data-testid="next-topbar">
+      <div className="glass pointer-events-auto flex h-12 min-w-0 items-center gap-3 rounded-[14px] pl-2 pr-4" data-chrome="top" data-testid="next-topbar">
         {back && (
           <button className="icon-btn" title={`Back to ${back} (U)`} aria-label={`Back to ${back}`}
                   onClick={() => { const s = useApp.getState(); if (s.returnMapId) s.openMap(s.returnMapId); }}>
@@ -253,13 +259,13 @@ function SaveBadge({ state, error }: { state: "saved" | "saving" | "error"; erro
             title={state === "error" ? `${error} — click to try again` : "Every change is saved automatically"}
             onClick={() => state === "error" && retrySaves()}>
       <span className="h-2 w-2 rounded-full" style={{ background: color, boxShadow: `0 0 8px ${color}` }} />
-      {text}
+      <span className="save-text">{text}</span>
     </button>
   );
 }
 
 /** How far apart nodes sit: one click away, in the dock and on the board. */
-export function SpacingButton({ up = true }: { up?: boolean }) {
+export function SpacingButton({ up = true, inline = false }: { up?: boolean; inline?: boolean }) {
   const spacing = useApp((s) => s.settings.spacing);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -270,6 +276,19 @@ export function SpacingButton({ up = true }: { up?: boolean }) {
     window.addEventListener("keydown", esc, true);
     return () => { window.removeEventListener("mousedown", away); window.removeEventListener("keydown", esc, true); };
   }, [open]);
+  if (inline) {
+    // inside a menu: the choices themselves, no second pop-up
+    return (
+      <div className="seg" role="group" aria-label="Spacing between nodes" title="Spacing between nodes">
+        {SPACING_ORDER.map((id) => (
+          <button key={id} className={spacing === id ? "on" : ""} aria-pressed={spacing === id}
+                  data-testid={`dock-spacing-${id}`} onClick={() => useApp.getState().setSetting("spacing", id)}>
+            {spacingLabel(id)}
+          </button>
+        ))}
+      </div>
+    );
+  }
   return (
     <span className="relative inline-flex" data-spacing>
       <button className={"icon-btn" + (open ? " on" : "")} aria-haspopup="true" aria-expanded={open} data-testid="spacing-open"
@@ -292,6 +311,13 @@ export function SpacingButton({ up = true }: { up?: boolean }) {
   );
 }
 
+interface DockItem {
+  id: string; label: string; title: string; icon: React.ReactNode; run: () => void;
+  primary?: boolean;                 // stays in the Quiet dock; the rest live under More
+  on?: boolean; disabled?: boolean; edit?: boolean;   // edit: only where the map can be changed
+  key?: string;
+}
+
 export function Dock({ readOnly = false }: { readOnly?: boolean }) {
   const rf = useReactFlow();
   const { zoom } = useViewport();
@@ -299,8 +325,22 @@ export function Dock({ readOnly = false }: { readOnly?: boolean }) {
   const auto = useApp((s) => s.settings.autoArrange);
   const hideDone = useApp((s) => s.settings.hideDone);
   const showCritical = useApp((s) => s.settings.showCritical);
+  const quiet = useApp((s) => s.settings.look === "quiet");
+  const zen = useApp((s) => s.zen);
+  const focusBranch = useApp((s) => s.focusBranch);
+  const oneSelected = useApp((s) => s.selectedNodes.length === 1);
   useApp((s) => s.historyTick);                       // re-render when undo/redo availability changes
+  const [more, setMore] = useState(false);
   const s = useApp.getState();
+
+  useEffect(() => {
+    if (!more) return;
+    const away = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest("[data-dock-more]")) setMore(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setMore(false); } };
+    window.addEventListener("mousedown", away);
+    window.addEventListener("keydown", esc, true);
+    return () => { window.removeEventListener("mousedown", away); window.removeEventListener("keydown", esc, true); };
+  }, [more]);
 
   const addIdea = () => {
     const el = document.querySelector(".react-flow") as HTMLElement;
@@ -308,54 +348,114 @@ export function Dock({ readOnly = false }: { readOnly?: boolean }) {
     const c = rf.screenToFlowPosition({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
     s.apply((m) => cmd.addFree(m, c.x - 80, c.y - 22), { edit: true });
   };
+  const fit = () => rf.fitView({ padding: C.ui.fit_padding, maxZoom: C.ui.fit_max_zoom, duration: 400 });
 
+  // One table: the Quiet dock shows the primary ones, More lists the rest; Classic shows all.
+  const items: (DockItem | "sep")[] = [
+    { id: "select-tool", label: "Select", title: "Select & move (Esc)", icon: <MousePointer2 size={17} />, primary: true, edit: true,
+      on: tool === "select", run: () => s.setTool("select") },
+    { id: "tool-cut", label: "Scissors", title: "Scissors — swipe across connections to cut them (X)", icon: <Scissors size={17} />,
+      primary: true, edit: true, on: tool === "cut", run: () => s.setTool(tool === "cut" ? "select" : "cut"), key: "X" },
+    "sep",
+    { id: "add-idea", label: "New idea", title: "New idea on the canvas (N)", icon: <Sparkles size={17} />, primary: true, edit: true, run: addIdea, key: "N" },
+    { id: "tidy", label: "Tidy up now", title: "Tidy up now (L)", icon: <Wand2 size={17} />, edit: true, run: () => s.arrangeNow(true), key: "L" },
+    { id: "auto-arrange", label: "Auto-arrange", icon: <Hand size={17} />, edit: true, on: auto, key: "⇧L",
+      title: auto ? "Auto-arrange is on: branches stay tidy as you edit (⇧L)" : "Auto-arrange is off: nodes stay where you put them (⇧L)",
+      run: () => s.setSetting("autoArrange", !auto) },
+    "sep",
+    { id: "undo", label: "Undo", title: `Undo (${MOD} Z)`, icon: <Undo2 size={17} />, primary: true, edit: true, disabled: !s.canUndo(), run: () => s.undo() },
+    { id: "redo", label: "Redo", title: `Redo (${MOD} ⇧ Z)`, icon: <Redo2 size={17} />, primary: true, edit: true, disabled: !s.canRedo(), run: () => s.redo() },
+    "sep",
+    { id: "hide-done", label: hideDone ? "Show done nodes" : "Hide done nodes", icon: hideDone ? <EyeOff size={17} /> : <Eye size={17} />,
+      title: hideDone ? "Done nodes are hidden — show them (H)" : "Hide done nodes (H)", edit: true, on: hideDone, key: "H",
+      run: () => s.setSetting("hideDone", !hideDone) },
+    { id: "dock-critical", label: "Critical path", icon: <Route size={17} />, edit: true, on: showCritical, key: "⇧C",
+      title: showCritical ? "Hide the critical path (⇧C)" : "Show the critical path: the chain of work that sets the finish date (⇧C)",
+      run: () => s.setSetting("showCritical", !showCritical) },
+    { id: "dock-focus", label: focusBranch ? "Leave focus" : "Focus on this branch", icon: <Focus size={17} />, edit: true,
+      on: !!focusBranch, disabled: !focusBranch && !oneSelected, key: "⇧F",
+      title: focusBranch ? "Show the whole map again (⇧F)" : "Fade everything but the selected branch (⇧F)",
+      run: () => s.set({ focusBranch: focusBranch ? null : s.selectedNodes[0] ?? null }) },
+    { id: "dock-zen", label: zen ? "Leave Zen" : "Zen", icon: <Expand size={17} />, on: zen, key: "Z",
+      title: zen ? "Bring everything back (Z)" : "Zen: only the map (Z)", run: () => s.set({ zen: !zen }) },
+    { id: "dock-next", label: "Next up", title: "Next up: what can be worked on now (U)", icon: <Rocket size={17} />, edit: true,
+      run: () => s.openMap(NEXT_VIEW), key: "U" },
+    { id: "dock-done-map", label: "Everything done", title: "Everything done, from every map (D)", icon: <Trophy size={17} />, edit: true,
+      run: () => s.openMap(DONE_VIEW), key: "D" },
+    { id: "dock-todo", label: "Everything to do", title: "Everything to do, from every map (A)", icon: <ListTodo size={17} />, edit: true,
+      run: () => s.openMap(TODO_VIEW), key: "A" },
+    { id: "dock-timeline", label: "Timeline", title: "Every due date, from every map (W)", icon: <CalendarRange size={17} />, edit: true,
+      run: () => s.openMap(TIMELINE_VIEW), key: "W" },
+    "sep",
+  ];
+  const usable = items.filter((it) => it === "sep" || !(readOnly && it.edit));
+  const button = (it: DockItem) => (
+    <button key={it.id} className={"icon-btn" + (it.on ? " on" : "")} title={it.title} aria-label={it.label}
+            aria-pressed={it.on} disabled={it.disabled} data-testid={it.id} onClick={it.run}>{it.icon}</button>
+  );
+  const zoomRow = (
+    <>
+      <button className="icon-btn" title="Zoom out (−)" aria-label="Zoom out" onClick={() => rf.zoomOut({ duration: 200 })}><Minus size={17} /></button>
+      <button className="num w-12 text-center text-[12px] font-semibold" style={{ background: "none", border: "none", color: "var(--textMuted)", cursor: "pointer" }}
+              title="Reset zoom to 100%" onClick={() => rf.zoomTo(1, { duration: 250 })}>{Math.round(zoom * 100)}%</button>
+      <button className="icon-btn" title="Zoom in (+)" aria-label="Zoom in" onClick={() => rf.zoomIn({ duration: 200 })}><Plus size={17} /></button>
+    </>
+  );
+  const fitButton = <button className="icon-btn" title="Fit to screen (F)" aria-label="Fit to screen" data-testid="fit" onClick={fit}><Maximize2 size={16} /></button>;
+
+  if (!quiet) {
+    // Classic: every tool in the dock, as in 2.0 (Zen, Focus and Timeline are keys and in ⌘K).
+    const classic = usable.filter((it) => it === "sep" || !["dock-focus", "dock-zen", "dock-timeline"].includes(it.id));
+    const row: React.ReactNode[] = [];
+    classic.forEach((it, i) => {
+      if (it !== "sep") row.push(button(it));
+      else if (row.length && classic[i - 1] !== "sep") row.push(<span key={`s${i}`} className="sep" />);
+    });
+    return (
+      <div className="dock-wrap pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center">
+        <div className="glass bar pointer-events-auto rounded-[16px] px-1.5 py-1.5" role="toolbar" aria-label="Tools" data-testid="dock" data-chrome="dock">
+          {row}
+          <SpacingButton />
+          {zoomRow}
+          {fitButton}
+        </div>
+      </div>
+    );
+  }
+
+  const primary = usable.filter((it): it is DockItem => it !== "sep" && !!it.primary);
+  const rest = usable.filter((it) => it === "sep" || !it.primary);
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center">
-      <div className="glass bar pointer-events-auto rounded-[16px] px-1.5 py-1.5" role="toolbar" aria-label="Tools" data-testid="dock">
-        {!readOnly && <>
-        <button className={"icon-btn" + (tool === "select" ? " on" : "")} title="Select & move (Esc)" aria-label="Select tool"
-                aria-pressed={tool === "select"} onClick={() => s.setTool("select")}><MousePointer2 size={17} /></button>
-        <button className={"icon-btn" + (tool === "cut" ? " on" : "")} title="Scissors — swipe across connections to cut them (X)"
-                aria-label="Scissors tool" aria-pressed={tool === "cut"} data-testid="tool-cut"
-                onClick={() => s.setTool(tool === "cut" ? "select" : "cut")}><Scissors size={17} /></button>
-        <span className="sep" />
-        <button className="icon-btn" title="New idea on the canvas (N)" aria-label="New idea" data-testid="add-idea"
-                onClick={addIdea}><Sparkles size={17} /></button>
-        <button className="icon-btn" title="Tidy up now (L)" aria-label="Tidy up" data-testid="tidy"
-                onClick={() => s.arrangeNow(true)}><Wand2 size={17} /></button>
-        <button className={"icon-btn" + (auto ? " on" : "")} aria-pressed={auto} data-testid="auto-arrange"
-                title={auto ? "Auto-arrange is on: branches stay tidy as you edit (⇧L)" : "Auto-arrange is off: nodes stay where you put them (⇧L)"}
-                aria-label="Auto-arrange" onClick={() => s.setSetting("autoArrange", !auto)}><Hand size={17} /></button>
-        <span className="sep" />
-        <button className="icon-btn" title={`Undo (${MOD} Z)`} aria-label="Undo" disabled={!s.canUndo()}
-                onClick={() => s.undo()} data-testid="undo"><Undo2 size={17} /></button>
-        <button className="icon-btn" title={`Redo (${MOD} ⇧ Z)`} aria-label="Redo" disabled={!s.canRedo()}
-                onClick={() => s.redo()} data-testid="redo"><Redo2 size={17} /></button>
-        <span className="sep" />
-        <button className={"icon-btn" + (hideDone ? " on" : "")} aria-pressed={hideDone} data-testid="hide-done"
-                title={hideDone ? "Done nodes are hidden — show them (H)" : "Hide done nodes (H)"}
-                aria-label={hideDone ? "Show done nodes" : "Hide done nodes"}
-                onClick={() => s.setSetting("hideDone", !hideDone)}>
-          {hideDone ? <EyeOff size={17} /> : <Eye size={17} />}
-        </button>
-        <button className={"icon-btn" + (showCritical ? " on" : "")} aria-pressed={showCritical} data-testid="dock-critical"
-                title={showCritical ? "Hide the critical path (⇧C)" : "Show the critical path: the chain of work that sets the finish date (⇧C)"}
-                aria-label="Critical path" onClick={() => s.setSetting("showCritical", !showCritical)}><Route size={17} /></button>
-        <button className="icon-btn dock-extra" title="Next up: what can be worked on now (U)" aria-label="Next up"
-                data-testid="dock-next" onClick={() => s.openMap(NEXT_VIEW)}><Rocket size={17} /></button>
-        <button className="icon-btn dock-extra" title="Everything done, from every map (D)" aria-label="Everything done"
-                data-testid="dock-done-map" onClick={() => s.openMap(DONE_VIEW)}><Trophy size={17} /></button>
-        <button className="icon-btn dock-extra" title="Everything to do, from every map (A)" aria-label="Everything to do"
-                data-testid="dock-todo" onClick={() => s.openMap(TODO_VIEW)}><ListTodo size={17} /></button>
-        <span className="sep" />
-        </>}
-        <SpacingButton />
-        <button className="icon-btn" title="Zoom out (−)" aria-label="Zoom out" onClick={() => rf.zoomOut({ duration: 200 })}><Minus size={17} /></button>
-        <button className="num w-12 text-center text-[12px] font-semibold" style={{ background: "none", border: "none", color: "var(--textMuted)", cursor: "pointer" }}
-                title="Reset zoom to 100%" onClick={() => rf.zoomTo(1, { duration: 250 })}>{Math.round(zoom * 100)}%</button>
-        <button className="icon-btn" title="Zoom in (+)" aria-label="Zoom in" onClick={() => rf.zoomIn({ duration: 200 })}><Plus size={17} /></button>
-        <button className="icon-btn" title="Fit to screen (F)" aria-label="Fit to screen" data-testid="fit"
-                onClick={() => rf.fitView({ padding: C.ui.fit_padding, maxZoom: C.ui.fit_max_zoom, duration: 400 })}><Maximize2 size={16} /></button>
+    <div className="dock-wrap pointer-events-none absolute inset-x-0 bottom-4 z-10 flex justify-center">
+      <div className="bar pointer-events-auto rounded-[14px] px-1.5 py-1.5" role="toolbar" aria-label="Tools" data-testid="dock" data-chrome="dock">
+        {primary.map(button)}
+        {fitButton}
+        <span className="relative inline-flex" data-dock-more>
+          <button className={"icon-btn" + (more ? " on" : "")} title="More tools and views" aria-label="More"
+                  aria-haspopup="menu" aria-expanded={more} data-testid="dock-more" onClick={() => setMore((v) => !v)}>
+            <MoreHorizontal size={17} />
+          </button>
+          {more && (
+            <div className="glass fade-in dock-menu absolute bottom-[calc(100%+10px)] right-0 z-30 w-[300px] rounded-[14px] p-1.5"
+                 role="menu" aria-label="More tools and views" data-testid="dock-menu">
+              {rest.map((it, i) => it === "sep"
+                ? (i && rest[i - 1] !== "sep" && i < rest.length - 1 ? <div key={`s${i}`} className="my-1 h-px" style={{ background: "var(--border)" }} /> : null)
+                : (
+                  <button key={it.id} role="menuitemcheckbox" aria-checked={it.on ?? false} disabled={it.disabled}
+                          className={"menu-row" + (it.on ? " on" : "")} data-testid={it.id} title={it.title}
+                          onClick={() => { it.run(); setMore(false); }}>
+                    <span className="menu-ico">{it.icon}</span>
+                    <span className="flex-1 text-left">{it.label}</span>
+                    {it.key && <span className="kbd">{it.key}</span>}
+                  </button>
+                ))}
+              <div className="mt-1 grid gap-1.5 border-t px-1 pt-1.5" style={{ borderColor: "var(--border)" }}>
+                <SpacingButton up={false} inline />
+                <div className="flex items-center gap-1">{zoomRow}</div>
+              </div>
+            </div>
+          )}
+        </span>
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
-import { Handle, NodeToolbar, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
-import { CalendarClock, CircleHelp, Flag, Hourglass, Link2, Lock, Plus, Split, StickyNote, Trash2, Workflow } from "lucide-react";
-import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Handle, NodeToolbar, Position, useStore, useUpdateNodeInternals, type NodeProps, type ReactFlowState } from "@xyflow/react";
+import { CalendarClock, ChevronsDownUp, CircleHelp, Flag, Hourglass, Link2, Lock, Plus, Split, StickyNote, Trash2, Workflow } from "lucide-react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { C, STATUS, STATUS_ORDER, SWATCHES, type StatusId } from "../constants";
 import { fillOf } from "../core/colors";
 import * as cmd from "../core/commands";
@@ -25,12 +26,17 @@ export interface NodeData extends Record<string, unknown> {
   onToggle?: () => void;           // what the round status mark does instead
   doneBar?: React.ReactNode;       // the toolbar shown instead of the editing one
   plan?: NodePlan;                 // badges from the plan: locks, logic, question, dates
+  folded?: number;                 // folded away: how many nodes are hidden under it
+  dim?: boolean;                   // outside the branch Focus keeps bright
+  drop?: boolean;                  // a dragged node would move under this one
+  glow?: boolean;                  // on the branch that is lit up (active colouring)
 }
 
 const SIDES = [Position.Top, Position.Right, Position.Bottom, Position.Left];
 
 function MindNodeView({ data, selected }: NodeProps & { data: NodeData }) {
-  const { node, isRoot, branch, progress, editing, seed, showNote, bar, linking, readOnly, onToggle, doneBar, plan } = data;
+  const { node, isRoot, branch, progress, editing, seed, showNote, bar, linking, readOnly, onToggle, doneBar, plan,
+          folded = 0, dim = false, drop = false, glow = false } = data;
   // Four connection dots on every node of a big map is thousands of store
   // subscriptions; mount them only where a hand is -- hovered or selected.
   // While the button is held down on this node they stay, however fast the
@@ -64,7 +70,7 @@ function MindNodeView({ data, selected }: NodeProps & { data: NodeData }) {
   if (fill) Object.assign(style, { "--rootA": fill.a, "--rootB": fill.b, "--rootText": fill.ink });
   const cls = ["mn", isRoot && "root", fill && "filled", node.status === "done" && "done", selected && "sel", linking && "linking",
                question && "question", plan?.inactive && "inactive", plan?.critical && "critical",
-               (plan?.wait || plan?.undecided) && "waiting"].filter(Boolean).join(" ");
+               (plan?.wait || plan?.undecided) && "waiting", dim && "dim", drop && "drop", glow && "lit"].filter(Boolean).join(" ");
   const showRing = progress.total >= C.ui.ring_min_tasks;
   const label = STATUS[node.status].label;
 
@@ -102,9 +108,13 @@ function MindNodeView({ data, selected }: NodeProps & { data: NodeData }) {
       {showRing && <ProgressRing done={progress.done} total={progress.total}
                                  size={isRoot ? 42 : 30} onRoot={isRoot || !!fill} />}
 
-      <NodeToolbar isVisible={bar && !editing} position={Position.Top} offset={12}>
-        {doneBar ?? (readOnly ? null : <NodeBar node={node} />)}
-      </NodeToolbar>
+      {folded > 0 && (
+        <button className="mn-fold nodrag" data-testid="fold-badge" onDoubleClick={(e) => e.stopPropagation()}
+                title={`${folded} hidden under it — click to unfold (.)`} aria-label={`Unfold: ${folded} hidden`}
+                onClick={(e) => { e.stopPropagation(); useApp.getState().toggleFold([node.id]); }}>+{folded}</button>
+      )}
+
+      {bar && !editing && <PlacedToolbar id={node.id}>{doneBar ?? (readOnly ? null : <NodeBar node={node} />)}</PlacedToolbar>}
     </div>
   );
 }
@@ -217,9 +227,73 @@ function Editor({ node, seed, isRoot }: { node: MindNode; seed: string | null; i
   );
 }
 
+/**
+ * The selection toolbar, where it covers no other node: above, below, right or
+ * left (centred, then flush with either edge). When every spot would hide a
+ * neighbour, it is pinned under the top bar instead -- never over the map. It is
+ * not drawn while a node is being dragged.
+ */
+function PlacedToolbar({ id, children }: { id: string; children: React.ReactNode }) {
+  const look = useApp((s) => s.settings.look);
+  const zoom = useStore((s: ReactFlowState) => Math.round(s.transform[2] * 20) / 20);
+  const nodes = useStore((s: ReactFlowState) => s.nodes);
+  // what is on screen, in map units (rounded, so panning a pixel does not re-place it)
+  const view = useStore((s: ReactFlowState) => {
+    const [tx, ty, z] = s.transform;
+    return `${Math.round(-tx / z)},${Math.round(-ty / z)},${Math.round((s.width - tx) / z)},${Math.round((s.height - ty) / z)}`;
+  });
+  // its real size, once drawn (the estimate from constants until then)
+  const inner = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  useLayoutEffect(() => {
+    const el = inner.current?.firstElementChild as HTMLElement | null;
+    if (!el) return;
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (w && (!size || Math.abs(size.w - w) > 1 || Math.abs(size.h - h) > 1)) setSize({ w, h });
+  });
+  const spot = useMemo(() => barSpot(id, nodes, zoom, look, size, view.split(",").map(Number) as [number, number, number, number]),
+                       [id, nodes, zoom, look, size, view]);
+  const body = <div ref={inner} style={{ display: "contents" }}>{children}</div>;
+  if (!spot) return createPortal(<div className="pinned-bar" data-testid="pinned-bar">{body}</div>,
+                                 document.querySelector(".app") ?? document.body);
+  return <NodeToolbar isVisible position={spot.side} align={spot.align} offset={C.look.toolbar_gap}>{body}</NodeToolbar>;
+}
+
+type Rect = { x: number; y: number; w: number; h: number };
+type Spot = { side: Position; align: "center" | "start" | "end" };
+const overlaps = (a: Rect, b: Rect) =>
+  Math.min(a.x + a.w, b.x + b.w) > Math.max(a.x, b.x) && Math.min(a.y + a.h, b.y + b.h) > Math.max(a.y, b.y);
+
+export function barSpot(id: string, nodes: ReactFlowState["nodes"], zoom: number, look: string,
+                        size: { w: number; h: number } | null = null,
+                        screen: [number, number, number, number] | null = null): Spot | null {
+  const self = nodes.find((n) => n.id === id);
+  if (!self) return { side: Position.Top, align: "center" };
+  const box = (n: (typeof nodes)[number]): Rect =>
+    ({ x: n.position.x, y: n.position.y, w: n.measured?.width ?? 150, h: n.measured?.height ?? 44 });
+  const me = box(self);
+  const W = (size?.w ?? C.look.toolbar_w[look as keyof typeof C.look.toolbar_w] ?? C.look.toolbar_w.classic) / zoom;
+  const H = (size?.h ?? C.look.toolbar_h) / zoom;
+  const G = C.look.toolbar_gap / zoom;
+  const cx = me.x + me.w / 2, cy = me.y + me.h / 2;
+  const xs = { center: cx - W / 2, start: me.x, end: me.x + me.w - W };
+  const spots: [Spot, Rect][] = [];
+  for (const [side, y] of [[Position.Top, me.y - G - H], [Position.Bottom, me.y + me.h + G]] as const)
+    for (const align of ["center", "start", "end"] as const) spots.push([{ side, align }, { x: xs[align], y, w: W, h: H }]);
+  spots.push([{ side: Position.Right, align: "center" }, { x: me.x + me.w + G, y: cy - H / 2, w: W, h: H }]);
+  spots.push([{ side: Position.Left, align: "center" }, { x: me.x - G - W, y: cy - H / 2, w: W, h: H }]);
+  const others = nodes.filter((n) => n.id !== id && !n.hidden).map(box);
+  // a spot also has to be on screen: half a toolbar past the edge is no toolbar
+  const visible = (r: Rect) => !screen || (r.x >= screen[0] && r.y >= screen[1] && r.x + r.w <= screen[2] && r.y + r.h <= screen[3]);
+  for (const [spot, r] of spots) if (visible(r) && !others.some((o) => overlaps(r, o))) return spot;
+  return null;
+}
+
 function NodeBar({ node }: { node: MindNode }) {
   const [colors, setColors] = useState(false);
   const store = useApp.getState;
+  const quiet = useApp((s) => s.settings.look === "quiet");
+  const hasKids = useApp((s) => !!s.active()?.edges.some((e) => e.kind === "branch" && e.source === node.id));
 
   return (
     <div className="glass bar fade-in nodrag" role="toolbar" aria-label="Node actions"
@@ -227,9 +301,9 @@ function NodeBar({ node }: { node: MindNode }) {
       <div className="seg" role="group" aria-label="Status">
         {STATUS_ORDER.map((s: StatusId) => (
           <button key={s} className={node.status === s ? "on" : ""} aria-pressed={node.status === s}
-                  title={`${STATUS[s].label} (${STATUS[s].key})`}
+                  title={`${STATUS[s].label} (${STATUS[s].key})`} aria-label={STATUS[s].label}
                   onClick={() => store().setStatus([node.id], s)}>
-            <StatusGlyph status={s} size={14} />{STATUS[s].label}
+            <StatusGlyph status={s} size={14} />{!quiet && STATUS[s].label}
           </button>
         ))}
       </div>
@@ -243,6 +317,11 @@ function NodeBar({ node }: { node: MindNode }) {
         </button>
         {colors && <ColorPicker node={node} onDone={() => setColors(false)} />}
       </div>
+      {hasKids && (
+        <button className={"icon-btn sm" + (node.folded ? " on" : "")} aria-pressed={!!node.folded} data-testid="fold"
+                title={node.folded ? "Unfold this branch (.)" : "Fold this branch away (.)"} aria-label={node.folded ? "Unfold" : "Fold"}
+                onClick={() => store().toggleFold([node.id])}><ChevronsDownUp size={16} /></button>
+      )}
       <button className="icon-btn sm" title="Add child (Tab)" aria-label="Add child"
               onClick={() => store().apply((m) => cmd.addChild(m, node.id, "", sizeOf), { edit: true })}>
         <Plus size={16} />

@@ -146,6 +146,8 @@ def _clean_plan(raw: dict, node: dict, repairs: list[str]) -> None:
     if isinstance(p3, list) and len(p3) == 3 and all(
             isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in p3):
         node["p3"] = [float(v) for v in p3]
+    if raw.get("folded") is True:            # its branch is folded away (2D, outline)
+        node["folded"] = True
 
 
 def _branch_would_cycle(children: dict[str, list[str]], parent: str, child: str) -> bool:
@@ -256,6 +258,10 @@ def clean_map(raw: object) -> tuple[dict, list[str]]:
         "nodes": nodes,
         "edges": edges,
     }
+    # The revision this file is at: a fresh token on every save, so two PCs that
+    # share a folder can tell "changed since I read it" apart, to the microsecond.
+    if valid_id(raw.get("rev")):
+        clean["rev"] = raw["rev"]
     return clean, repairs
 
 

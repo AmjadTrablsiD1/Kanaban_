@@ -9,7 +9,7 @@ import { reopen } from "../canvas/DoneCanvas";
 import { doneTodo, statusTodo } from "../canvas/TodoCanvas";
 import { typeAhead } from "../canvas/MindNodeView";
 import { hiddenDone } from "../core/done";
-import { DONE_VIEW, NEXT_VIEW, sizeOf, TODO_VIEW, useApp } from "../store/app";
+import { DONE_VIEW, NEXT_VIEW, sizeOf, TIMELINE_VIEW, TODO_VIEW, useApp } from "../store/app";
 import { nextTheme, pairOf, THEMES } from "../theme";
 
 export const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -180,8 +180,15 @@ export function buildCommands(rf: ReactFlowInstance): Command[] {
     { id: "auto-arrange", label: "Auto-arrange on / off", group: "View", keys: ["⇧", "L"],
       match: (e) => e.key.toLowerCase() === "l" && e.shiftKey && !mod(e),
       run: () => S().setSetting("autoArrange", !S().settings.autoArrange) },
+    { id: "focus", label: "Focus on this branch (and back)", group: "View", keys: ["⇧", "F"],
+      match: (e) => e.key.toLowerCase() === "f" && e.shiftKey && plain(e), enabled: () => !!one() || !!S().focusBranch,
+      run: () => {
+        const s = S();
+        const a = one();
+        s.set({ focusBranch: !a || s.focusBranch === a ? null : a });
+      } },
     { id: "fit", label: "Fit the map to the screen", group: "View", keys: ["F"],
-      match: (e) => e.key.toLowerCase() === "f" && plain(e), enabled: hasMap,
+      match: (e) => e.key.toLowerCase() === "f" && plain(e) && !e.shiftKey, enabled: hasMap,
       run: () => rf.fitView({ padding: C.ui.fit_padding, maxZoom: C.ui.fit_max_zoom, duration: 400 }) },
     { id: "zoom-in", label: "Zoom in", group: "View", keys: ["+"], match: (e) => (e.key === "+" || e.key === "=") && plain(e), run: () => rf.zoomIn({ duration: 200 }) },
     { id: "zoom-out", label: "Zoom out", group: "View", keys: ["−"], match: (e) => e.key === "-" && plain(e), run: () => rf.zoomOut({ duration: 200 }) },
@@ -206,7 +213,34 @@ export function buildCommands(rf: ReactFlowInstance): Command[] {
         S().toast("info", `Theme: ${THEMES[next].label}`);
       } },
     { id: "minimap", label: "Show / hide the overview", group: "View", keys: ["M"],
-      match: (e) => e.key.toLowerCase() === "m" && plain(e), run: () => S().setSetting("minimap", !S().settings.minimap) },
+      match: (e) => e.key.toLowerCase() === "m" && plain(e),
+      run: () => S().setSetting("minimapMode", S().settings.minimapMode === "never" ? "always" : "never") },
+    { id: "zen", label: "Zen: only the map (and back)", group: "View", keys: ["Z"],
+      match: (e) => e.key.toLowerCase() === "z" && plain(e) && !e.shiftKey,
+      run: () => {
+        const s = S();
+        s.set({ zen: !s.zen });
+        if (!s.zen) s.toast("info", "Zen: only the map. Z or Esc to come back; the dock shows when you near the bottom.");
+      } },
+    { id: "fold", label: "Fold / unfold the branch", group: "View", keys: ["."],
+      match: (e) => e.key === "." && plain(e), enabled: () => S().selectedNodes.length > 0 && !!S().active(),
+      run: () => S().toggleFold(S().selectedNodes) },
+    { id: "capture", label: "Quick capture to the Inbox", group: "Create", keys: ["I"],
+      match: (e) => e.key.toLowerCase() === "i" && plain(e) && !e.shiftKey, run: () => S().set({ captureOpen: true }) },
+    { id: "view-outline", label: "Switch mind map / outline", group: "View", keys: ["O"],
+      match: (e) => e.key.toLowerCase() === "o" && plain(e), enabled: hasMap,
+      run: () => S().setSetting("view", S().settings.view === "outline" ? "2d" : "outline") },
+    { id: "timeline", label: "Timeline: every due date (and back)", group: "Maps", keys: ["W"],
+      match: (e) => e.key.toLowerCase() === "w" && plain(e),
+      run: () => {
+        const s = S();
+        if (s.activeMapId !== TIMELINE_VIEW) { s.openMap(TIMELINE_VIEW); return; }
+        const back = s.returnMapId && s.maps[s.returnMapId] ? s.returnMapId : s.order[0];
+        if (back) s.openMap(back);
+      } },
+    ...choices(C.look).map((l): Command => ({
+      id: `look-${l.id}`, label: `Look: ${l.label}`, group: "View", run: () => S().setSetting("look", l.id),
+    })),
     { id: "sidebar", label: "Show / hide the map list", group: "View", keys: [MOD, "B"],
       match: (e) => mod(e) && e.key.toLowerCase() === "b", run: () => S().setSetting("sidebarOpen", !S().settings.sidebarOpen) },
     { id: "palette", label: "Search everything", group: "Navigate", keys: [MOD, "K"],
@@ -218,7 +252,9 @@ export function buildCommands(rf: ReactFlowInstance): Command[] {
         const s = S();
         if (s.linkFrom) s.setLinkFrom(null);
         else if (s.tool !== "select") s.setTool("select");
-        else s.select([], []);
+        else if (s.selectedNodes.length || s.selectedEdges.length) s.select([], []);
+        else if (s.focusBranch) s.set({ focusBranch: null });
+        else if (s.zen) s.set({ zen: false });
       } },
   ];
   return list;
@@ -227,7 +263,8 @@ export function buildCommands(rf: ReactFlowInstance): Command[] {
 /** The global keyboard: first matching, enabled command wins. */
 /** Commands that act on the 2D canvas, so they sleep while the Kanban board is showing. */
 const CANVAS_ONLY = new Set(["add-child", "add-sibling", "add-free", "edit", "connect", "cut-tool", "delete-keep",
-  "select-all", "nav-left", "nav-right", "nav-up", "nav-down", "tidy", "auto-arrange", "fit", "zoom-in", "zoom-out", "minimap"]);
+  "select-all", "nav-left", "nav-right", "nav-up", "nav-down", "tidy", "auto-arrange", "fit", "zoom-in", "zoom-out", "minimap",
+  "focus", "fold"]);
 
 export function handleKey(e: KeyboardEvent, list: Command[]): boolean {
   const t = e.target as HTMLElement | null;
@@ -253,8 +290,9 @@ export function handleKey(e: KeyboardEvent, list: Command[]): boolean {
     }
     return false;
   }
-  if (s.paletteOpen || s.settingsOpen || s.noteFor || s.planFor) return false;   // a panel owns the keys
-  const board = s.settings.view === "board" && !!s.active();
+  if (s.paletteOpen || s.settingsOpen || s.noteFor || s.planFor || s.captureOpen) return false;   // a panel owns the keys
+  // no canvas under the board or the outline (they have keys of their own)
+  const board = (s.settings.view === "board" || s.settings.view === "outline") && !!s.active();
   for (const c of list) {
     if (board && CANVAS_ONLY.has(c.id)) continue;                     // no canvas under the board
     if (c.match?.(e) && (c.enabled?.() ?? true)) {

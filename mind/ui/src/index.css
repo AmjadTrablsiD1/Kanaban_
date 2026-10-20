@@ -339,3 +339,171 @@ button.board-empty { cursor: pointer; }
 
 /* A narrow window: the shortcuts to the live maps leave the dock (they stay in the map list, U / A / D). */
 @media (max-width: 1000px) { .dock-extra { display: none; } }
+
+/* ---------------------------------------------------------------- quiet look (the default)
+   Fewer frames, same colours: solid panels instead of glass (glass stays on things that come
+   and go: menus, dialogs, toasts), a plain top bar, a dimmer sidebar, and nodes as text on a
+   line in their branch colour -- still tinted when "Colourful nodes" is on. */
+.look-quiet [data-chrome="top"], .look-quiet [data-chrome="right"] {
+  background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+.look-quiet [data-chrome="right"] .seg { background: color-mix(in srgb, var(--surface) 80%, transparent); }
+.look-quiet .topbar-chips { display: none; }
+.look-quiet [data-testid="save-state"]:not([data-state="error"]) .save-text {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+.look-quiet [data-chrome="dock"] {
+  background: var(--surface); border: 1px solid var(--border); box-shadow: 0 6px 20px rgba(0,0,0,.14);
+}
+.look-quiet [data-chrome="side"] { background: var(--bg); border-right-color: color-mix(in srgb, var(--border) 60%, transparent); }
+.look-quiet [data-chrome="side"] .tagline { display: none; }
+.look-quiet [data-chrome="side"] [data-testid="map-item"]:not(:has([aria-current="page"])) .text-\[13\.5px\] { color: var(--textMuted); font-weight: 500; }
+.look-quiet [data-chrome="side"] [role="progressbar"] { height: 2px; }
+.look-quiet .react-flow__minimap { background: var(--surface); }
+
+.app.look-quiet .stage .mn:not(.root):not(.filled) {
+  background: transparent; border-color: transparent; box-shadow: none;
+  border-radius: 9px 9px 3px 3px; border-bottom: 2px solid var(--branch);
+}
+.app.look-quiet .stage .mn:not(.root)::before { display: none; }
+.app.look-quiet .stage.colorful .mn:not(.root):not(.filled) { background: color-mix(in srgb, var(--branch) 13%, transparent); }
+.app.look-quiet .stage .mn:not(.root):not(.filled):hover { border-color: transparent; border-bottom-color: var(--branch); }
+.app.look-quiet .stage .mn:not(.root):not(.filled).sel {
+  border-color: var(--nodeSelected); border-bottom-color: var(--branch);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nodeSelected) 30%, transparent);
+}
+
+/* the dock's More menu: one row per tool, with its key */
+.menu-row {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 8px; border-radius: 8px;
+  border: none; background: transparent; color: var(--text); font-size: 13px; cursor: pointer; text-align: left;
+}
+.menu-row:hover:not(:disabled) { background: var(--surfaceRaised); }
+.menu-row:disabled { opacity: .4; cursor: default; }
+.menu-row .menu-ico { display: inline-grid; place-items: center; width: 20px; color: var(--textMuted); }
+.menu-row.on .menu-ico { color: var(--accent); }
+.dock-menu .seg { width: 100%; }
+.dock-menu .seg button { flex: 1; justify-content: center; padding: 0 4px; }
+
+/* ---------------------------------------------------------------- zen and focus */
+.zen [data-chrome="right"], .zen .react-flow__minimap, .zen [data-testid="topbar"] .topbar-chips { display: none; }
+.zen [data-chrome="top"] { opacity: .5; background: transparent; border-color: transparent; box-shadow: none; backdrop-filter: none; }
+.zen [data-chrome="top"]:hover { opacity: 1; }
+.zen .dock-wrap { opacity: 0; transform: translateY(12px); transition: opacity var(--motion) var(--ease), transform var(--motion) var(--ease); }
+.zen .dock-wrap * { pointer-events: none !important; }
+.zen.reveal .dock-wrap { opacity: 1; transform: none; }
+.zen.reveal .dock-wrap [data-chrome="dock"], .zen.reveal .dock-wrap [data-chrome="dock"] * { pointer-events: auto !important; }
+.mn.dim { opacity: .16; }
+.mn.dim:hover { opacity: .5; }
+
+/* ---------------------------------------------------------------- fold and drop */
+.mn-fold {
+  position: absolute; right: -14px; top: 50%; transform: translateY(-50%);
+  min-width: 26px; height: 20px; padding: 0 6px; border-radius: 999px; cursor: pointer;
+  font: 650 11px/18px var(--font-sans); font-variant-numeric: tabular-nums;
+  background: var(--surface); color: var(--branch); border: 1.5px solid var(--branch);
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.mn-fold:hover { background: var(--branch); color: var(--surface); }
+.mn.drop { box-shadow: 0 0 0 3px var(--accent), 0 0 24px color-mix(in srgb, var(--accent) 45%, transparent) !important; }
+
+/* ---------------------------------------------------------------- outline */
+.outline-row { display: flex; align-items: center; gap: 4px; min-height: 34px; border-radius: 8px; }
+.outline-row:focus-within { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.outline-row.inactive { opacity: .45; }
+.outline-fold, .outline-status {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; flex: none; border-radius: 6px;
+  border: none; background: transparent; color: var(--textMuted); cursor: pointer;
+}
+span.outline-fold { cursor: default; }
+.outline-fold:hover, .outline-status:hover { background: var(--surfaceRaised); color: var(--text); }
+.outline-text {
+  flex: 1; min-width: 0; height: 30px; padding: 0 6px; border: 1px solid transparent; border-radius: 6px;
+  background: transparent; color: var(--text); font-size: 14.5px; outline: none;
+}
+.outline-text:focus { border-color: color-mix(in srgb, var(--accent) 50%, transparent); background: var(--bg); }
+.outline-text.root { font-size: 17px; font-weight: 650; }
+.outline-row.done .outline-text { color: var(--textMuted); text-decoration: line-through; }
+.outline-meta { font-size: 11.5px; color: var(--textMuted); padding: 0 6px; white-space: nowrap; }
+
+/* ---------------------------------------------------------------- timeline */
+.timeline-scroll { position: relative; z-index: 1; }
+.timeline-ruler { position: sticky; top: 0; z-index: 3; display: flex; height: 44px; background: var(--canvas);
+  border-bottom: 1px solid var(--border); }
+.timeline-day { position: relative; flex: none; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
+  font-size: 11px; color: var(--textMuted); }
+.timeline-day.weekend { opacity: .6; }
+.timeline-day.today { color: var(--accent); font-weight: 700; }
+.timeline-month { position: absolute; top: 4px; left: 3px; font-size: 11px; font-weight: 650; color: var(--text); white-space: nowrap; }
+.timeline-weekend { position: absolute; top: 44px; bottom: 0; background: color-mix(in srgb, var(--text) 4%, transparent); }
+.timeline-now { position: absolute; top: 40px; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent); }
+.timeline-group { position: relative; z-index: 1; padding-top: 10px; }
+.timeline-map { position: sticky; left: 0; padding: 6px 14px; font-size: 11px; font-weight: 650; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--textMuted); background: var(--canvas); }
+.timeline-row { position: relative; height: 34px; }
+.timeline-label { position: sticky; left: 0; z-index: 2; display: flex; align-items: center; height: 34px; padding: 0 14px;
+  border: none; background: var(--canvas); color: var(--text); font-size: 13px; text-align: left; cursor: pointer; }
+.timeline-label:hover { color: var(--accent); }
+.timeline-bar { position: absolute; top: 5px; height: 24px; display: flex; align-items: center; padding: 0 8px; min-width: 8px;
+  border-radius: 7px; border: 1px solid color-mix(in srgb, var(--bar) 70%, transparent);
+  background: color-mix(in srgb, var(--bar) 24%, var(--surface)); color: var(--text); font-size: 12px; cursor: pointer; overflow: hidden; }
+.timeline-bar:hover { background: color-mix(in srgb, var(--bar) 40%, var(--surface)); }
+.timeline-bar.late { border-color: var(--danger); box-shadow: inset 3px 0 0 var(--danger); }
+.timeline-bar.question { border-style: dashed; }
+.timeline-bar.waiting { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--bar) 22%, var(--surface)) 0 6px,
+  color-mix(in srgb, var(--bar) 10%, var(--surface)) 6px 12px); }
+/* the selection toolbar, when every spot beside the node would cover a neighbour */
+.pinned-bar { position: fixed; top: 76px; left: calc(var(--sidebar-w, 0px) + (100vw - var(--sidebar-w, 0px)) / 2); transform: translateX(-50%); z-index: 40; }
+
+/* ---------------------------------------------------------------- lighting and active colouring
+   The light lives on its own layer behind each node (::after), so no node style -- Quiet,
+   Classic, filled, selected -- can switch it off by accident. Dark themes glow in the branch
+   colour; light themes get a gentle coloured shadow instead. */
+.mn::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+  transition: box-shadow var(--motion) var(--ease), opacity var(--motion) var(--ease);
+}
+[data-scheme="dark"] .light-soft .mn:not(.root)::after {
+  box-shadow: 0 0 18px color-mix(in srgb, var(--branch) 30%, transparent);
+}
+[data-scheme="dark"] .light-neon .mn:not(.root)::after {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--branch) 55%, transparent), 0 0 34px color-mix(in srgb, var(--branch) 38%, transparent);
+}
+[data-scheme="dark"] .light-neon .mn:not(.root):not(.filled) { border-color: color-mix(in srgb, var(--branch) 55%, transparent); }
+[data-scheme="light"] .light-soft .mn:not(.root)::after { box-shadow: 0 4px 14px color-mix(in srgb, var(--branch) 18%, transparent); }
+[data-scheme="light"] .light-neon .mn:not(.root)::after { box-shadow: 0 6px 20px color-mix(in srgb, var(--branch) 30%, transparent); }
+[data-scheme="dark"] .light-soft .kb-edge { filter: drop-shadow(0 0 3px var(--edgeGlow, var(--accent))); }
+[data-scheme="dark"] .light-neon .kb-edge { filter: drop-shadow(0 0 5px var(--edgeGlow, var(--accent))) drop-shadow(0 0 10px var(--edgeGlow, var(--accent))); }
+
+/* the branch you select or point at lights up -- in every lighting, light themes too */
+.mn.lit:not(.root)::after {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--branch) 55%, transparent),
+              0 0 22px color-mix(in srgb, var(--branch) 55%, transparent) !important;
+}
+.stage .kb-edge.lit { filter: drop-shadow(0 0 6px var(--edgeGlow, var(--accent))) !important; }
+[data-scheme="light"] .mn.lit:not(.root)::after {
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--branch) 60%, transparent),
+              0 6px 22px color-mix(in srgb, var(--branch) 35%, transparent) !important;
+}
+
+/* doing: what you are working on pulses with light */
+@keyframes doing-pulse {
+  0%, 100% { box-shadow: 0 0 6px color-mix(in srgb, var(--q-doing) 30%, transparent); }
+  50%      { box-shadow: 0 0 0 2px color-mix(in srgb, var(--q-doing) 45%, transparent), 0 0 26px color-mix(in srgb, var(--q-doing) 60%, transparent); }
+}
+.doing-glow .mn[data-status="doing"]:not(.root):not(.lit)::after { animation: doing-pulse 2.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .doing-glow .mn[data-status="doing"]:not(.root):not(.lit)::after {
+    animation: none !important; box-shadow: 0 0 0 2px color-mix(in srgb, var(--q-doing) 45%, transparent), 0 0 18px color-mix(in srgb, var(--q-doing) 45%, transparent);
+  }
+}
+
+/* done fades: finished work loses its colour and light, so the open work keeps it */
+/* colour and light go, the words stay readable (no opacity on the text) */
+.done-fades .mn.done:not(.root):not(.lit) { filter: saturate(.12); }
+.app .stage.done-fades .mn.done:not(.root):not(.lit):not(.filled) {
+  background: transparent; border-bottom-color: color-mix(in srgb, var(--branch) 30%, transparent);
+}
+.done-fades .mn.done:not(.root):not(.lit)::after { box-shadow: none !important; animation: none !important; }
+.done-fades .kb-edge.to-done:not(.lit) { opacity: .35; filter: none !important; }

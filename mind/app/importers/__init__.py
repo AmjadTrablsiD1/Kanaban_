@@ -6,7 +6,7 @@ Every importer is `convert(raw: bytes) -> ImportResult`.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Optional
 
 
 @dataclass
@@ -21,13 +21,18 @@ class Importer:
     id: str
     label: str
     accept: str                    # for the browser's file picker
-    convert: Callable[[bytes], ImportResult]
+    convert: Optional[Callable[[bytes], ImportResult]] = None
+    # an importer that merges into what is there instead of adding new maps (store, raw) -> result
+    merge: Optional[Callable[..., dict]] = None
 
 
 def _registry() -> dict[str, Importer]:
+    from app import bundle
     from app.importers import kanban
     items = [
         Importer("kanban", "Kanaban board (board.json)", ".json,application/json", kanban.convert),
+        Importer("bundle", "Kanaban Mind maps from another PC", ".json,application/json",
+                 merge=bundle.import_bundle),
     ]
     return {i.id: i for i in items}
 

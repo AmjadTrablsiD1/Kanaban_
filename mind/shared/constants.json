@@ -3,7 +3,7 @@
   "app": {
     "id": "kanaban-mind",
     "name": "Kanaban Mind",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "icon": "🧠",
     "tagline": "Your Kanban, as a mind map"
   },
@@ -26,7 +26,7 @@
   "paths": {
     "data_dir": "~/.config/kanaban-mind",
     "data_dir_env": "KANABAN_MIND_DATA",
-    "state_dir": "~/.local/state/kanaban-mind",
+    "state_dir": "~/.local/state/kanaban-mind", "state_dir_env": "KANABAN_MIND_STATE",
     "maps_subdir": "maps",
     "backups_subdir": "backups",
     "workspace_file": "workspace.json",
@@ -63,26 +63,71 @@
     "fit_max_zoom": 1.1,
     "focus_retry_frames": 20
   },
-  "settings_defaults": {
-    "theme": "midnight",
-    "saveOnExit": true,
-    "sidebarOpen": true,
-    "minimap": true,
-    "snapToGrid": false,
-    "showNotes": true,
-    "view": "2d",
-    "autoArrange": true,
-    "compact": false,
-    "hideDone": false,
-    "colorful": true,
-    "spacing": "normal",
-    "depMode": "warn",
-    "criticalBy": "estimate",
-    "showCritical": false,
-    "layout3d": "cone",
-    "labels3d": "smart",
-    "remember3d": true
+  "look": {
+    "_comment": "How the chrome looks. 'quiet': solid panels, a six-tool dock with More, plain top bar, nodes as text on a line in their branch colour (tinted when Colourful is on). 'classic': the glass panels and boxed nodes of 2.0.",
+    "order": ["quiet", "classic"],
+    "items": {
+      "quiet": { "label": "Quiet", "hint": "Calm: fewer frames, six tools in the dock, the rest under More." },
+      "classic": { "label": "Classic", "hint": "Glass panels, boxed nodes and every tool in the dock." }
+    },
+    "minimap": {
+      "order": ["auto", "always", "never"],
+      "items": {
+        "auto": { "label": "When needed", "hint": "Only when the map is bigger than the screen." },
+        "always": { "label": "Always", "hint": "Always in the corner." },
+        "never": { "label": "Never", "hint": "Never shown (M brings it back)." }
+      }
+    },
+    "lighting": {
+      "order": ["off", "soft", "neon"],
+      "items": {
+        "off": { "label": "Off", "hint": "No light: flat nodes and lines." },
+        "soft": { "label": "Soft", "hint": "Each node and line gives off a soft light in its branch colour (a gentle shadow in light themes)." },
+        "neon": { "label": "Neon", "hint": "Strong light, best in a dark theme." }
+      }
+    },
+    "toolbar_w": { "quiet": 330, "classic": 490 },
+    "toolbar_h": 44,
+    "toolbar_gap": 12,
+    "zen_reveal_px": 96,
+    "focus_dim": 0.16
   },
+  "inbox": {
+    "_comment": "Quick capture (I): one line goes to the map with this name, created when first needed.",
+    "name": "Inbox"
+  },
+  "doing_limit": {
+    "_comment": "Personal Kanban's WIP limit: how many tasks may be 'doing' at once, counted over every map.",
+    "modes": {
+      "order": ["off", "warn", "strict"],
+      "items": {
+        "off": { "label": "Off", "hint": "No limit." },
+        "warn": { "label": "Warn", "hint": "Go over the limit, with a warning and Undo." },
+        "strict": { "label": "Strict", "hint": "Refused until something is done." }
+      }
+    },
+    "min": 1,
+    "max": 20
+  },
+  "timeline": {
+    "_comment": "The Timeline: every dated task from every map on one strip of days. Built live from the plan, never stored.",
+    "id": "__timeline__",
+    "title": "Timeline",
+    "day_px": 30,
+    "days_before": 7,
+    "days_after": 42,
+    "max_days": 400
+  },
+  "sync": {
+    "_comment": "Maps on two PCs. A bundle file carries every map; a chosen folder (OneDrive, iCloud, Dropbox) is watched for changes the other PC makes.",
+    "bundle_format": "kanaban-mind-bundle",
+    "bundle_version": 1,
+    "bundle_name": "kanaban-mind-{date}.json",
+    "location_file": "location.json",
+    "poll_s": 5,
+    "conflict_suffix": " (other PC, {stamp})"
+  },
+  "settings_defaults": {"theme": "midnight", "saveOnExit": true, "sidebarOpen": true, "snapToGrid": false, "showNotes": true, "view": "2d", "autoArrange": true, "compact": false, "hideDone": false, "colorful": true, "spacing": "normal", "depMode": "warn", "criticalBy": "estimate", "showCritical": false, "layout3d": "cone", "labels3d": "smart", "remember3d": true, "look": "quiet", "minimapMode": "auto", "doingLimit": 3, "doingMode": "off", "classicEditable": false, "lighting": "soft", "activeBranch": true, "doingGlow": true, "doneFades": true},
   "statuses": {
     "_comment": "A registry: add a status here plus its q-<id> colour in themes.json, nothing else. counts_as: null = not a task (ideas), 'open' or 'done' for progress.",
     "order": [

@@ -71,10 +71,10 @@ def test_delete_keeps_a_recoverable_copy(data):
 def test_settings_defaults_save_and_reset(data):
     s = Store(data)
     assert s.settings()["theme"] == "midnight" and not s.has_settings_file()
-    s.save_settings({"theme": "daylight", "saveOnExit": False, "bogus": 1, "minimap": "yes"})
+    s.save_settings({"theme": "daylight", "saveOnExit": False, "bogus": 1, "showNotes": "yes"})
     fresh = Store(data).settings()
     assert fresh["theme"] == "daylight" and fresh["saveOnExit"] is False
-    assert "bogus" not in fresh and fresh["minimap"] is True   # wrong type ignored
+    assert "bogus" not in fresh and fresh["showNotes"] is True   # wrong type ignored
     s.reset_settings()
     assert not s.has_settings_file() and s.settings()["theme"] == "midnight"
 

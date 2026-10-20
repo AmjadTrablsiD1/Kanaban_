@@ -7,6 +7,8 @@ import { api, ApiError, setInstance } from "../api";
 import { C, spacingFactor, type StatusId } from "../constants";
 import * as cmd from "../core/commands";
 import { hiddenDone, withoutHidden } from "../core/done";
+import { foldedAway, union } from "../core/fold";
+import { overLimit } from "../core/wip";
 import { violations, type PlanOptions } from "../core/plan";
 import { descendants, index } from "../core/graph";
 import { History } from "../core/history";
@@ -25,12 +27,23 @@ export const measured = new Map<string, Size>();
 export const sizeOf = (n: MindNode): Size => measured.get(n.id) ?? estimateSize(n.text);
 
 const history = new History(C.ui.undo_limit);
+/** The revision of each map on disk as this window last saw it -- sent with every save. */
+const known = new Map<string, string>();
+const remember = (maps: MindMap[]) => maps.forEach((m) => { if (m.rev) known.set(m.id, m.rev); });
 
 export const DONE_VIEW = C.done_view.id;
 export const TODO_VIEW = C.todo_view.id;
 export const NEXT_VIEW = C.next_view.id;
+export const TIMELINE_VIEW = C.timeline.id;
 /** The live views: built from every map, with no file of their own. */
-export const isLiveView = (id: string | null) => id === DONE_VIEW || id === TODO_VIEW || id === NEXT_VIEW;
+export const isLiveView = (id: string | null) =>
+  id === DONE_VIEW || id === TODO_VIEW || id === NEXT_VIEW || id === TIMELINE_VIEW;
+
+/** What the canvas leaves out: folded branches, and done work when "hide done" is on. */
+export function hiddenIn(map: MindMap): Set<string> {
+  const folded = foldedAway(map);
+  return useApp.getState().settings.hideDone ? union(hiddenDone(map), folded) : folded;
+}
 
 /**
  * Auto-arrange. With "hide done" on, only what is on screen is laid out, so
@@ -38,7 +51,7 @@ export const isLiveView = (id: string | null) => id === DONE_VIEW || id === TODO
  * are arranged again the moment they are shown.
  */
 export function arranged(map: MindMap): MindMap {
-  const shown = useApp.getState().settings.hideDone ? withoutHidden(map, hiddenDone(map)) : map;
+  const shown = withoutHidden(map, hiddenIn(map));
   return cmd.moveNodes(map, tidy(shown.nodes, shown.edges, sizeOf, spacingFactor(useApp.getState().settings.spacing)));
 }
 
@@ -69,6 +82,11 @@ interface State {
   focus: { nodeId: string | null; nonce: number };
   historyTick: number;
   arrangeTick: number;          // bumps when auto-arrange moved things: the canvas animates it
+  zen: boolean;                 // everything but the map hidden (Z)
+  focusBranch: string | null;   // the branch Focus keeps bright (⇧F); everything else fades
+  captureOpen: boolean;         // quick capture to the Inbox (I)
+  dragging: boolean;            // a node is being dragged: its toolbar steps aside
+  dropTarget: string | null;    // the node a dragged node would move under
 
   init(): Promise<void>;
   active(): MindMap | null;
@@ -115,8 +133,10 @@ interface State {
   setCentreName(name: string): void;
   beginDrag(ids: string[]): void;
   dragTo(positions: Record<string, { x: number; y: number }>): void;
-  endDrag(): void;
+  endDrag(target?: string | null): void;
   saveViewport(v: { x: number; y: number; zoom: number }): void;
+  toggleFold(ids: string[]): void;
+  capture(text: string): Promise<boolean>;
   set(partial: Partial<State>): void;
 }
 
@@ -149,6 +169,11 @@ export const useApp = create<State>((set, get) => ({
   focus: { nodeId: null, nonce: 0 },
   historyTick: 0,
   arrangeTick: 0,
+  zen: false,
+  focusBranch: null,
+  captureOpen: false,
+  dragging: false,
+  dropTarget: null,
 
   async init() {
     let st: ServerState;
@@ -159,6 +184,7 @@ export const useApp = create<State>((set, get) => ({
       return;
     }
     setInstance(st.instance);
+    remember(st.maps);
     const maps = Object.fromEntries(st.maps.map((m) => [m.id, m]));
     const settings = { ...(C.settings_defaults as Settings), ...st.settings };
     applyTheme(settings.theme);
@@ -174,6 +200,7 @@ export const useApp = create<State>((set, get) => ({
     }
     st.problems.forEach((p) => get().toast("warn", p));
     announceTab();
+    watchOtherPc();
   },
 
   active() {
@@ -333,6 +360,7 @@ export const useApp = create<State>((set, get) => ({
       return;
     }
     history.forget(id);
+    known.delete(id);
     set((s) => {
       const maps = { ...s.maps };
       delete maps[id];
@@ -381,7 +409,20 @@ export const useApp = create<State>((set, get) => ({
 
   async importFile(file) {
     try {
-      const out = await api.importFile("kanban", file);
+      const out = await api.importFile("auto", file);
+      if (out.merged) {
+        // maps from another PC: added, or brought up to date -- never a duplicate
+        remember(out.maps);
+        const fresh = out.maps.filter((m) => !get().maps[m.id]);
+        out.maps.filter((m) => get().maps[m.id]).forEach((m) => history.forget(m.id));
+        set((st) => ({ maps: { ...st.maps, ...Object.fromEntries(out.maps.map((m) => [m.id, m])) },
+                       order: [...st.order, ...fresh.map((m) => m.id)] }));
+        const s = out.summary;
+        get().toast("success", `From the other PC: ${s.added} added, ${s.updated} updated` +
+          `${s.kept ? `, ${s.kept} kept as they are here (yours were newer; theirs went to backups)` : ""}` +
+          `${s.same ? `, ${s.same} already the same` : ""}.`);
+        return;
+      }
       addImported(out.maps);
       const s = out.summary;
       get().toast("success", `Imported ${s.maps} map${s.maps === 1 ? "" : "s"} with ${s.cards} cards.`);
@@ -462,6 +503,14 @@ export const useApp = create<State>((set, get) => ({
   focusNode(mapId, nodeId) {
     if (get().activeMapId !== mapId) get().openMap(mapId);
     const m = get().maps[mapId];
+    if (nodeId && m && foldedAway(m).has(nodeId)) {
+      // it sits inside a folded branch: open the folds above it, so it can be seen
+      const idx = index(m);
+      const above: string[] = [];
+      for (let cur = idx.parents.get(nodeId)?.[0]; cur && !above.includes(cur); cur = idx.parents.get(cur)?.[0])
+        if (idx.byId.get(cur)?.folded) above.push(cur);
+      get().applyTo(mapId, (mm) => cmd.setFolded(mm, above, false));
+    }
     if (nodeId && m && get().settings.hideDone && hiddenDone(m).has(nodeId)) {
       get().setSetting("hideDone", false);                   // you asked for it: show it
       get().toast("info", "Showing done nodes again, so you can see the one you picked.");
@@ -521,11 +570,13 @@ export const useApp = create<State>((set, get) => ({
     const map = get().active();
     if (!map) return;
     drag.before = map;
+    drag.ids = ids;
     // Dragging a node carries everything that branches off it.
     const idx = index(map);
     const moving = new Set(ids);
     drag.followers = new Map(ids.map((id) => [id, descendants(id, idx).filter((d) => !moving.has(d))]));
     drag.last = new Map(map.nodes.map((n) => [n.id, { x: n.x, y: n.y }]));
+    set({ dragging: true });
   },
 
   dragTo(positions) {
@@ -547,12 +598,24 @@ export const useApp = create<State>((set, get) => ({
     if (next !== map) set((s) => ({ maps: { ...s.maps, [next.id]: next } }));
   },
 
-  endDrag() {
+  endDrag(target = null) {
     const before = drag.before;
     drag.before = null;
-    const map = get().active();
+    set({ dragging: false, dropTarget: null });
+    let map = get().active();
     if (!before || !map || map === before) return;
+    let moved: string | null = null;
+    if (target) {
+      // Let go on top of another node: the dragged one moves under it, branch and all.
+      const id = drag.ids.length === 1 ? drag.ids[0] : null;      // one node at a time
+      const r = id ? cmd.moveUnder(map, id, target) : null;
+      if (r && !r.error && r.map !== map && passesGate(before, r.map)) {
+        map = r.map;
+        moved = map.nodes.find((n) => n.id === target)?.text || "it";
+      } else if (r?.error) get().toast("warn", r.error);
+    }
     history.record(before);
+    if (moved) setTimeout(() => get().toast("info", `Moved under “${moved}”.`, { label: "Undo", run: () => get().undo() }), 0);
     let next = map;
     if (get().settings.autoArrange) next = arranged(map);   // letting go re-orders
     set((s) => ({ maps: { ...s.maps, [next.id]: next }, historyTick: s.historyTick + 1,
@@ -570,6 +633,35 @@ export const useApp = create<State>((set, get) => ({
     scheduleSave(map.id);
   },
 
+  toggleFold(ids) {
+    const map = get().active();
+    if (!map || !ids.length) return;
+    const r = get().apply((m) => cmd.toggleFold(m, ids), { select: false });
+    if (!r || r.error) return;
+    // anything selected that just went out of sight is let go
+    const gone = foldedAway(get().active()!);
+    set((s) => ({ selectedNodes: s.selectedNodes.filter((id) => !gone.has(id)) }));
+  },
+
+  async capture(text) {
+    const clean = text.trim().slice(0, C.limits.max_text_len);
+    if (!clean) return false;
+    const s = get();
+    let inbox = s.order.map((id) => s.maps[id]).find((m) => m && m.name === C.inbox.name);
+    if (!inbox) {
+      inbox = cmd.emptyMap(C.inbox.name);
+      const fresh = inbox;
+      set((st) => ({ maps: { ...st.maps, [fresh.id]: fresh }, order: [...st.order, fresh.id] }));
+      scheduleWorkspace();
+    }
+    const root = inbox.nodes.find((n) => !inbox!.edges.some((e) => e.kind === "branch" && e.target === n.id)) ?? inbox.nodes[0];
+    const r = get().applyTo(inbox.id, (m) => {
+      const added = cmd.addChild(m, root.id, clean, sizeOf);
+      return { ...added, map: cmd.setStatus(added.map, [added.nodeId!], "todo").map };
+    });
+    return !!r && !r.error;
+  },
+
   set(partial) { set(partial); },
 }));
 
@@ -580,6 +672,30 @@ export const useApp = create<State>((set, get) => ({
  * off    say nothing (the locks still show)
  */
 function passesGate(before: MindMap, after: MindMap): boolean {
+  return passesDoingLimit(before, after) && passesDeps(before, after);
+}
+
+/**
+ * The "doing" limit (Settings -> Planning), counted over every map:
+ * warn   let it happen, say so, offer Undo -- strict  refuse it -- off  nothing
+ */
+function passesDoingLimit(before: MindMap, after: MindMap): boolean {
+  const s = useApp.getState();
+  const { doingMode: mode, doingLimit: limit } = s.settings;
+  if (mode === "off") return true;
+  const all = s.order.map((id) => s.maps[id]).filter(Boolean);
+  const now = overLimit(all, before, after, limit);
+  if (now === null) return true;
+  if (mode === "strict") {
+    s.toast("warn", `That would make ${now} things doing at once; the limit is ${limit}. Finish one first (Settings → Planning).`);
+    return false;
+  }
+  setTimeout(() => useApp.getState().toast("warn", `${now} things doing at once — more than your limit of ${limit}.`,
+    { label: "Undo", run: () => useApp.getState().undoIn(after.id) }), 0);
+  return true;
+}
+
+function passesDeps(before: MindMap, after: MindMap): boolean {
   const s = useApp.getState();
   const mode = s.settings.depMode;
   if (mode === "off") return true;
@@ -603,15 +719,16 @@ export function planOptions(): PlanOptions {
   return { whatIf: s.whatIf, criticalBy: s.settings.criticalBy };
 }
 
-const drag: { before: MindMap | null; followers: Map<string, string[]>;
+const drag: { before: MindMap | null; ids: string[]; followers: Map<string, string[]>;
               last: Map<string, { x: number; y: number }> } =
-  { before: null, followers: new Map(), last: new Map() };
+  { before: null, ids: [], followers: new Map(), last: new Map() };
 
 function same(a: string[], b: string[]) {
   return a.length === b.length && a.every((x, i) => x === b[i]);
 }
 
 function addImported(maps: MindMap[]) {
+  remember(maps);
   const st = useApp.getState();
   useApp.setState({
     maps: { ...st.maps, ...Object.fromEntries(maps.map((m) => [m.id, m])) },
@@ -671,7 +788,9 @@ function flush(mapId: string, keepalive = false) {
     const m = useApp.getState().maps[mapId];
     if (!m) { markDone(`map:${mapId}`); return; }
     try {
-      await api.saveMap(m, keepalive);
+      const res = await api.saveMap(m, keepalive, known.get(mapId));
+      if (res.rev) known.set(mapId, res.rev);
+      if (res.conflict) keptBoth(m, res.conflict);
       if (!pending.has(mapId) && !timers.has(mapId)) {
         if (useApp.getState().save === "error" && busy.size === 1) useApp.setState({ save: "saving" });
         markDone(`map:${mapId}`);
@@ -812,4 +931,48 @@ function announceTab() {
     else if (ev.data === "here") warn();
   };
   ch.postMessage("hello");
+}
+
+// ------------------------------------------------------------------ two PCs, one folder
+/**
+ * Both PCs changed the same map before one saw the other's change. The server kept
+ * the other PC's version as a map of its own; show it, and say so.
+ */
+function keptBoth(mine: MindMap, theirs: MindMap) {
+  remember([theirs]);
+  useApp.setState((s) => ({ maps: { ...s.maps, [theirs.id]: theirs },
+                            order: s.order.includes(theirs.id) ? s.order : [...s.order, theirs.id] }));
+  useApp.getState().toast("warn",
+    `“${mine.name}” was also changed on another PC. Both are kept: the other version is the map “${theirs.name}”.`,
+    { label: "Open it", run: () => useApp.getState().openMap(theirs.id) });
+}
+
+let watching = false;
+/** Changes the other PC makes (through a synced folder) appear here while the app is open. */
+function watchOtherPc() {
+  if (watching) return;
+  watching = true;
+  setInterval(async () => {
+    const st = useApp.getState();
+    if (document.visibilityState !== "visible" || st.phase !== "ready" || st.save === "error") return;
+    let out: { changed: MindMap[]; removed: string[] };
+    try { out = await api.changes(Object.fromEntries(known)); } catch { return; }
+    const s = useApp.getState();
+    const adopt = out.changed.filter((m) => m.rev && known.get(m.id) !== m.rev &&    // not our own save, seen late
+      !pending.has(m.id) && !timers.has(m.id) && !busy.has(`map:${m.id}`));
+    const gone = out.removed.filter((id) => !pending.has(id) && s.activeMapId !== id && s.maps[id]);
+    if (!adopt.length && !gone.length) return;
+    remember(adopt);
+    adopt.forEach((m) => history.forget(m.id));       // undo must not take the other PC's work back
+    gone.forEach((id) => { known.delete(id); history.forget(id); });
+    useApp.setState((st2) => {
+      const maps = { ...st2.maps, ...Object.fromEntries(adopt.map((m) => [m.id, m])) };
+      gone.forEach((id) => delete maps[id]);
+      const order = [...st2.order.filter((id) => !gone.includes(id)),
+                     ...adopt.map((m) => m.id).filter((id) => !st2.order.includes(id))];
+      return { maps, order };
+    });
+    const names = adopt.map((m) => `“${m.name}”`).slice(0, 3).join(", ");
+    if (adopt.length) useApp.getState().toast("info", `Updated from another PC: ${names}${adopt.length > 3 ? ` and ${adopt.length - 3} more` : ""}.`);
+  }, C.sync.poll_s * 1000);
 }

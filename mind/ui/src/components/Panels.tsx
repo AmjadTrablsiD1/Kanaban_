@@ -1,12 +1,12 @@
-import { Check, FolderOpen, Info, RotateCcw, Save, TriangleAlert, X } from "lucide-react";
+import { Check, Info, RotateCcw, Save, TriangleAlert, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { api } from "../api";
 import { C, choices, SPACING_ORDER, spacingLabel } from "../constants";
 import type { Command } from "../commands/registry";
 import * as cmd from "../core/commands";
 import { useApp, type ToastKind } from "../store/app";
 import { THEMES, THEME_NAMES } from "../theme";
 import type { Settings } from "../types";
+import { DataSection } from "./DataSection";
 import { UpdateSettings } from "./Updates";
 
 export function Drawer({ title, onClose, children, testId }: { title: string; onClose: () => void; children: React.ReactNode; testId: string }) {
@@ -107,6 +107,19 @@ export function SettingsPanel({ commands }: { commands: Command[] }) {
 
   return (
     <Drawer title="Settings & shortcuts" onClose={() => s.set({ settingsOpen: false })} testId="settings">
+      <Cap>Look</Cap>
+      <Choice label="Style" value={settings.look} options={choices(C.look)} onPick={(v) => set("look", v)} testId="look" />
+      <Choice label="Overview map" value={settings.minimapMode} options={choices(C.look.minimap)}
+              onPick={(v) => set("minimapMode", v)} testId="minimap-mode" />
+      <Choice label="Lighting" value={settings.lighting} options={choices(C.look.lighting)}
+              onPick={(v) => set("lighting", v)} testId="lighting" />
+      <Toggle label="Light up my branch" hint="The node you select or point at lights up with everything under it."
+              on={settings.activeBranch} onChange={(v) => set("activeBranch", v)} testId="set-active-branch" />
+      <Toggle label="Doing tasks glow" hint="What you are working on pulses gently, on every map."
+              on={settings.doingGlow} onChange={(v) => set("doingGlow", v)} testId="set-doing-glow" />
+      <Toggle label="Done fades" hint="Finished tasks lose their colour and light, so open work stands out."
+              on={settings.doneFades} onChange={(v) => set("doneFades", v)} testId="set-done-fades" />
+
       <Cap>Theme</Cap>
       <p className="-mt-1 mb-2 text-[12px]" style={{ color: "var(--textMuted)" }}>
         <span className="kbd">T</span> switches dark / light · <span className="kbd">⇧</span><span className="kbd">T</span> the next theme
@@ -141,6 +154,20 @@ export function SettingsPanel({ commands }: { commands: Command[] }) {
               onPick={(v) => set("criticalBy", v)} testId="critical-by" />
       <Toggle label="Show the critical path" hint="The chain of work that sets the finish date glows (⇧C)." on={settings.showCritical}
               onChange={(v) => set("showCritical", v)} testId="set-critical" />
+      <Choice label="Limit on doing" value={settings.doingMode} options={choices(C.doing_limit.modes)}
+              onPick={(v) => set("doingMode", v)} testId="doing-mode" />
+      {settings.doingMode !== "off" && (
+        <label className="-mt-1 mb-3 flex items-center gap-2 text-[13px]">
+          At most
+          <input type="number" className="field num" style={{ width: 64, height: 30 }} data-testid="doing-limit"
+                 min={C.doing_limit.min} max={C.doing_limit.max} value={settings.doingLimit}
+                 onChange={(e) => {
+                   const v = Math.round(Number(e.target.value));
+                   if (Number.isFinite(v)) set("doingLimit", Math.min(C.doing_limit.max, Math.max(C.doing_limit.min, v)));
+                 }} />
+          tasks doing at once, over every map
+        </label>
+      )}
 
       <Cap>3D view</Cap>
       <Choice label="Layout" value={settings.layout3d} options={choices(C.view3d.layouts)}
@@ -157,8 +184,6 @@ export function SettingsPanel({ commands }: { commands: Command[] }) {
               onChange={(v) => set("compact", v)} testId="set-compact" />
       <Toggle label="Show notes on nodes" hint="The first two lines of a note, under the title." on={settings.showNotes}
               onChange={(v) => set("showNotes", v)} />
-      <Toggle label="Overview map" hint="The small map in the corner. M toggles it." on={settings.minimap}
-              onChange={(v) => set("minimap", v)} />
       <Toggle label="Snap to grid" hint="Only when auto-arrange is off." on={settings.snapToGrid}
               onChange={(v) => set("snapToGrid", v)} />
 
@@ -176,19 +201,9 @@ export function SettingsPanel({ commands }: { commands: Command[] }) {
         {dirty ? "You have unsaved setting changes." : fileExists ? "settings.json is up to date." : "Using the defaults — no settings.json yet."}
       </p>
 
-      <Cap>Your data</Cap>
-      <p className="text-[12.5px] leading-relaxed" style={{ color: "var(--textMuted)" }}>
-        Every map is saved automatically as its own file, with safety copies. The Kanaban board app is never changed.
-      </p>
-      <code className="mt-2 block break-all rounded-[8px] px-2 py-1.5 text-[11.5px]"
-            style={{ background: "var(--bg)", border: "1px solid var(--border)", fontFamily: "var(--font-mono)" }}>
-        {info?.dataDir}
-      </code>
-      <button className="btn mt-2" onClick={() => api.reveal().catch((e) => s.toast("error", (e as Error).message))}>
-        <FolderOpen size={15} /> Open data folder
-      </button>
+      <DataSection Cap={Cap} />
 
-      <UpdateSettings Cap={Cap} />
+      <UpdateSettings Cap={Cap} Toggle={Toggle} />
 
       <Cap>Keyboard</Cap>
       {groups.map((g) => (

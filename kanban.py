@@ -146,6 +146,51 @@ mind_elsewhere = None  # the address of a Kanaban Mind already running on its ow
 mind_problem = None    # why it did not start -- the classic board is the start page then
 
 
+# The classic board after the move: shown read-only (Kanaban Mind -> Settings can allow
+# editing), so a task is never typed into the board that no longer feeds the maps.
+READ_ONLY_BANNER = """
+<style id="km-readonly">
+  #km-ro { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 9999;
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px 10px 16px; border-radius: 14px;
+    font: 500 13.5px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; color: #fff;
+    background: rgba(17, 20, 40, .92); box-shadow: 0 10px 30px rgba(0,0,0,.35); max-width: calc(100vw - 32px); }
+  #km-ro a, #km-ro button { font: inherit; border-radius: 9px; padding: 7px 12px; cursor: pointer; text-decoration: none;
+    border: 1px solid rgba(255,255,255,.25); background: transparent; color: #fff; white-space: nowrap; }
+  #km-ro a { background: #6d7cff; border-color: #6d7cff; }
+  #board * { pointer-events: none !important; }
+  #groupBar .hdr-btn, #projectBar .hdr-btn, .add-card-btn, .col-header .icon-btn, .col-grip, .col-fill,
+  #addColumnBtn, .add-card, .add-col, #btnNewColumn { display: none !important; }
+</style>
+<div id="km-ro" role="status" data-testid="classic-read-only">
+  <span>Read-only &mdash; your tasks now live in Kanaban Mind.</span>
+  <a href="/">Open Kanaban Mind</a>
+  <button type="button" id="km-ro-edit">Allow editing</button>
+</div>
+<script>
+  // nothing typed or dragged here can reach board.json while it is read-only
+  ["dragstart", "drop", "dblclick", "contextmenu"].forEach(function (t) {
+    document.addEventListener(t, function (e) { if (!e.target.closest("#km-ro")) { e.preventDefault(); e.stopPropagation(); } }, true);
+  });
+  window.saveNow = async function () { setStatus("", "Read-only"); };
+  document.getElementById("km-ro-edit").addEventListener("click", async function () {
+    await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" },
+                                   body: JSON.stringify({ classicEditable: true }) });
+    location.reload();
+  });
+</script>
+"""
+
+
+def classic_read_only():
+    """Read-only while Kanaban Mind runs here and its settings do not allow editing the old board."""
+    if mind is None:
+        return False                      # Kanaban Mind did not start: the classic board is the board
+    try:
+        return not mind.store.settings().get("classicEditable", False)
+    except Exception:  # noqa: BLE001 -- unreadable settings: the safe side
+        return True
+
+
 def load_mind():
     """Start Kanaban Mind beside the classic board. Any failure leaves the classic board as it was."""
     global mind, mind_http, mind_elsewhere, mind_problem
@@ -389,7 +434,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def _classic_page(self):
         with open(INDEX_FILE, "rb") as f:
-            self._send(200, f.read(), "text/html; charset=utf-8")
+            page = f.read()
+        if classic_read_only() and b"</body>" in page:
+            page = page.replace(b"</body>", READ_ONLY_BANNER.encode("utf-8") + b"</body>", 1)
+        self._send(200, page, "text/html; charset=utf-8")
 
     def do_GET(self):
         path, _, query = self.path.partition("?")
@@ -420,7 +468,11 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, '{"error": "not found"}')
 
     def do_POST(self):
-        if self.path == "/api/board":
+        if self.path == "/api/board" and classic_read_only():
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            self._send(423, json.dumps({"error": "The classic board is read-only. Allow editing in "
+                                                 "Kanaban Mind: Settings -> Version & updates."}))
+        elif self.path == "/api/board":
             length = int(self.headers.get("Content-Length", 0))
             try:
                 data = json.loads(self.rfile.read(length))

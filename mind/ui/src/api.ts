@@ -42,13 +42,19 @@ export const api = {
   state: () => call<ServerState>("state"),
   whoami: () => call<{ token: string }>("whoami"),
   createMap: (name: string) => call<{ map: MindMap }>("maps", json("POST", { name })),
-  saveMap: (m: MindMap, keepalive = false) =>
-    call<{ ok: boolean; updatedAt: string; repairs: string[] }>(`maps/${m.id}`, json("PUT", m, { keepalive })),
+  saveMap: (m: MindMap, keepalive = false, base?: string) =>
+    call<{ ok: boolean; updatedAt: string; rev: string; repairs: string[]; conflict: MindMap | null }>(`maps/${m.id}`,
+      json("PUT", m, { keepalive, headers: { "Content-Type": "application/json", ...(base ? { "X-Kanaban-Base": base } : {}) } })),
   deleteMap: (id: string) => call<{ ok: boolean }>(`maps/${id}`, { method: "DELETE" }),
   saveWorkspace: (order: string[], activeMapId: string | null, centreName: string, keepalive = false) =>
     call("workspace", json("PUT", { order, activeMapId, centreName }, { keepalive })),
   importFile: (importer: string, file: Blob) =>
-    call<{ maps: MindMap[]; summary: Record<string, number> }>(`import/${importer}`, { method: "POST", body: file }),
+    call<{ maps: MindMap[]; summary: Record<string, number>; merged?: boolean }>(`import/${importer}`, { method: "POST", body: file }),
+  changes: (known: Record<string, string>) =>
+    call<{ changed: MindMap[]; removed: string[] }>("changes", json("POST", { known })),
+  switchFolder: (path: string) =>
+    call<{ dataDir: string; summary: Record<string, number> }>("datadir", json("POST", { path })),
+  exportUrl: () => API("export"),
   importDefaultKanban: () =>
     call<{ maps: MindMap[]; summary: Record<string, number> }>("import/kanban/default", { method: "POST" }),
   saveSettings: (s: Settings, keepalive = false) =>

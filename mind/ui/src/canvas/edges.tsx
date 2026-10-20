@@ -19,6 +19,8 @@ export interface EdgeData extends Record<string, unknown> {
   faded?: boolean;           // leads into a branch that is out of play
   critical?: boolean;        // needs on the critical path
   met?: boolean;             // needs already satisfied
+  glow?: boolean;            // on the branch that is lit up (active colouring)
+  toDone?: boolean;          // leads to a done task (fades with "done fades")
 }
 
 function box(n: InternalNode) {
@@ -131,7 +133,7 @@ function BranchEdgeView({ id, source, target, data, selected }: EdgeProps & { da
       </defs>
       <path d={d} fill="none" stroke="transparent" strokeWidth={18} className="react-flow__edge-interaction" />
       <path d={d} fill="none" data-edge-id={id} opacity={data.faded ? 0.3 : undefined}
-            className={"react-flow__edge-path kb-edge" + (data.cutHit ? " cut-hit" : "")}
+            className={"react-flow__edge-path kb-edge" + (data.cutHit ? " cut-hit" : "") + (data.glow ? " lit" : "") + (data.toDone ? " to-done" : "")}
             stroke={`url(#${gid})`} strokeWidth={selected ? data.width + 1.2 : data.width} strokeLinecap="round"
             style={{ ["--edgeGlow" as string]: data.to }} />
       {/* A portal per edge is costly on a big map: only mount one when there is something to show. */}
@@ -165,7 +167,7 @@ function LinkEdgeView({ id, source, target, data, selected }: EdgeProps & { data
     <>
       <path d={d} fill="none" stroke="transparent" strokeWidth={18} className="react-flow__edge-interaction" />
       <path d={d} fill="none" data-edge-id={id} markerEnd="url(#kb-arrow)"
-            className={"react-flow__edge-path kb-edge kb-link" + (data.cutHit ? " cut-hit" : "")}
+            className={"react-flow__edge-path kb-edge kb-link" + (data.cutHit ? " cut-hit" : "") + (data.glow ? " lit" : "")}
             strokeWidth={selected ? 2.6 : 1.8} strokeDasharray="7 4" strokeLinecap="round"
             style={{ stroke: "var(--edgeLink)", ["--edgeGlow" as string]: "var(--edgeLink)" }} />
       {/* A portal per edge is costly on a big map: only mount one when there is something to show. */}

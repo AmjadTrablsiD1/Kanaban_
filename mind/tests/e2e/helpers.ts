@@ -81,3 +81,18 @@ export async function edgeMiddle(page: Page, edgeId: string) {
     throw new Error(`edge ${id} has no clickable point on screen`);
   }, edgeId);
 }
+
+/** A dock tool. In the Quiet look (the default) most of them live under More: open it when needed. */
+export async function dockTool(page: Page, testId: string): Promise<Locator> {
+  const dock = page.getByTestId("dock");
+  if (await dock.getByTestId(testId).isVisible()) return dock.getByTestId(testId);
+  await page.getByTestId("dock-more").click();
+  return page.getByTestId("dock-menu").getByTestId(testId);
+}
+
+/** The spacing choices of the 2D dock: a pop-up in Classic, a row under More in Quiet. */
+export async function openDockSpacing(page: Page) {
+  const pop = page.getByTestId("dock").getByTestId("spacing-open");
+  if (await pop.isVisible()) await pop.click();
+  else await page.getByTestId("dock-more").click();
+}

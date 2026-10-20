@@ -16,6 +16,9 @@ def data(tmp_path, monkeypatch):
     """An isolated data folder, so no test ever touches the real maps."""
     folder = tmp_path / "data with space é"
     monkeypatch.setenv("KANABAN_MIND_DATA", str(folder))
+    monkeypatch.setenv("KANABAN_MIND_STATE", str(tmp_path / "state"))
+    # and no first start ever reads his real Kanban board: tests that want one bring their own
+    monkeypatch.setenv("KANABAN_MIND_KANBAN_BOARD", str(tmp_path / "no-board-here.json"))
     return folder
 
 
