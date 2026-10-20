@@ -168,6 +168,50 @@ test("4 · track progress: statuses, rings and completion dates", async ({ page 
   await page.screenshot({ path: shot("04-progress") });
 });
 
+/** The red, green, blue of a computed colour, whatever notation the browser used (and whatever its alpha). */
+const rgbOf = (css: string) => {
+  const srgb = /color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/.exec(css);
+  if (srgb) return srgb.slice(1, 4).map((v) => Math.round(Number(v) * 255));
+  return (/rgba?\((\d+), (\d+), (\d+)/.exec(css) ?? []).slice(1, 4).map(Number);
+};
+
+test("4a · a child's own colour fills it, text stays readable, ∅ gives the branch colour back", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("map-item").filter({ hasText: "Software" }).click();
+  await page.keyboard.press("Escape");
+  const box = () => node(page, "Mesh preview").locator(".mn");
+  const before = await box().evaluate((el) => getComputedStyle(el).backgroundImage + getComputedStyle(el).backgroundColor);
+
+  await select(page, "Mesh preview");
+  await page.getByRole("toolbar", { name: "Node actions" }).getByRole("button", { name: "Colour", exact: true }).click();
+  await expect(page.getByTestId("color-picker").getByRole("button", { name: /^Colour #/ })).toHaveCount(15);
+  await page.getByTestId("color-picker").getByRole("button", { name: "Colour #EAB308" }).click();
+  await expect(page.getByTestId("color-picker")).toHaveCount(0);
+
+  // filled with it, visibly: the gradient is the chosen yellow, and the text is dark on it
+  await expect(box()).toHaveClass(/filled/);
+  const look = await box().evaluate((el) => ({ bg: getComputedStyle(el).backgroundImage,
+    ink: getComputedStyle(el.querySelector(".mn-text")!).color }));
+  expect(look.bg).toContain("linear-gradient");
+  expect(look.bg).not.toBe(before);
+  expect(rgbOf(look.ink)).toEqual([11, 13, 26]);                       // the dark ink (dimmed a little if done)
+  const st = await saved(page);
+  expect(mapByName(st, "Software").nodes.find((n: any) => n.text === "Mesh preview").color).toBe("#EAB308");
+  await page.screenshot({ path: shot("4a-child-colour") });
+
+  // white text on a dark colour
+  await page.getByRole("toolbar", { name: "Node actions" }).getByRole("button", { name: "Colour", exact: true }).click();
+  await page.getByTestId("color-picker").getByRole("button", { name: "Colour #6366F1" }).click();
+  await expect.poll(async () => rgbOf(await box().evaluate((el) => getComputedStyle(el.querySelector(".mn-text")!).color)))
+    .toEqual([255, 255, 255]);
+
+  // ∅: back to the branch colour, nothing of its own saved
+  await page.getByRole("toolbar", { name: "Node actions" }).getByRole("button", { name: "Colour", exact: true }).click();
+  await page.getByTestId("color-none").click();
+  await expect(box()).not.toHaveClass(/filled/);
+  expect(mapByName(await saved(page), "Software").nodes.find((n: any) => n.text === "Mesh preview").color ?? null).toBeNull();
+});
+
 test("4b · hide done nodes, and the Everything done map", async ({ page }) => {
   await page.goto("/");
   await page.getByTestId("map-item").filter({ hasText: "Software" }).click();

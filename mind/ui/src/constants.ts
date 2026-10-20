@@ -16,6 +16,10 @@ export const STATUS = constants.statuses.items as Record<
 
 /** The accent colours a node can be given (theme-independent data). */
 export const PALETTE: string[] = themes._palette;
+/** The colours offered in a node's colour picker. */
+export const SWATCHES: string[] = themes._swatches;
+/** Text colours for a node filled with its own colour. */
+export const INK: { dark: string; light: string } = themes._ink;
 
 export const API = (path: string) => `/api/${path.replace(/^\//, "")}`;
 

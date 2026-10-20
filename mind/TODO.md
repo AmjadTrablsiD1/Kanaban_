@@ -46,6 +46,10 @@
       Mind cannot start; first import keeps a copy of board.json; an update chip + Settings
       section; the 1.9 → 2.0 update rehearsed (git and ZIP) on copies with Python 3.9
 
+- [x] 2026-10-20 A child's own colour fills it again (dark or white text by contrast, 15 colours
+      + any colour + ∅) -- the Sept 24 version had it; the merge into the planning branch
+      had dropped it, so a chosen colour showed only as a faint tint. Test 4a guards it
+
 ## Doing
 - [ ] Nothing in progress
 

@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
-  "date": "2026-10-01",
-  "notes": "Kanaban Mind: your boards become mind maps - with a board view, planning (what waits for what, questions, due dates), Next up and 3D. On the first start your board.json is turned into maps; board.json itself is only read, never changed, and the classic board stays one click away (Settings, or /classic)."
+  "version": "2.0.1",
+  "date": "2026-10-20",
+  "notes": "A node's own colour shows again: pick a colour for any node (15 colours, any colour, or none) and it is filled with it, with dark or white text so it stays readable."
 }

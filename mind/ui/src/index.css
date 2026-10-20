@@ -110,8 +110,8 @@ button { font: inherit; color: inherit; }
   background: var(--branch); box-shadow: 0 0 10px var(--branch); opacity: .95;
 }
 /* colourful nodes: each node takes a soft tint of its branch colour */
-.colorful .mn:not(.root) { background: color-mix(in srgb, var(--branch) 16%, var(--glass)); }
-.colorful .mn:not(.root):not(.sel) { border-color: color-mix(in srgb, var(--branch) 38%, var(--nodeBorder)); }
+.colorful .mn:not(.root):not(.filled) { background: color-mix(in srgb, var(--branch) 16%, var(--glass)); }
+.colorful .mn:not(.root):not(.filled):not(.sel) { border-color: color-mix(in srgb, var(--branch) 38%, var(--nodeBorder)); }
 .mn:hover { border-color: color-mix(in srgb, var(--branch) 45%, var(--nodeBorder)); transform: translateY(-1px); }
 .mn.sel {
   border-color: var(--nodeSelected);
@@ -126,6 +126,28 @@ button { font: inherit; color: inherit; }
   box-shadow: 0 14px 44px color-mix(in srgb, var(--rootA) 45%, transparent), inset 0 1px 0 rgba(255,255,255,.25);
 }
 .mn.root::before { display: none; }
+/* a node with a colour of its own: filled with it, like a root; the text colour is chosen for contrast */
+.mn.filled {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--rootA), var(--rootB));
+  color: var(--rootText);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 8px 24px color-mix(in srgb, var(--rootA) 38%, transparent);
+}
+.mn.filled::before { display: none; }
+.mn.filled:hover { border-color: transparent; }
+.mn.filled.sel {
+  border-color: var(--nodeSelected);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--nodeSelected) 45%, transparent),
+              0 10px 30px color-mix(in srgb, var(--rootA) 45%, transparent);
+}
+.mn.filled .mn-text { color: var(--rootText); }
+.mn.filled .mn-note { color: color-mix(in srgb, var(--rootText) 82%, transparent); }
+.mn.filled .mn-edit { color: var(--rootText); caret-color: var(--rootText); }
+.mn.filled .mn-edit::placeholder { color: color-mix(in srgb, var(--rootText) 60%, transparent); }
+.mn.filled.done:not(.root) .mn-text {
+  color: color-mix(in srgb, var(--rootText) 86%, transparent);
+  text-decoration-color: var(--rootText);
+}
 .mn.root.sel { box-shadow: 0 0 0 3px color-mix(in srgb, var(--rootText) 60%, transparent), 0 14px 44px color-mix(in srgb, var(--rootA) 55%, transparent); }
 .mn-body { flex: 1; min-width: 0; }
 .mn-text {

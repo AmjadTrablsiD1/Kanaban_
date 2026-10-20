@@ -191,6 +191,9 @@ in `layout3d()` + an entry in `constants.json → view3d.layouts` + a test in
   the swap is locked; a shared `.tmp` name once made one of two overlapping saves fail.
   On Windows a file being read (or scanned) cannot be replaced for a moment, so the swap
   retries (`storage.replace_tries`).
+- **A node's own colour fills it** (`.mn.filled`, `core/colors.ts::fillOf`); only
+  *inherited* branch colours are a tint. Drawing both as a 16 % tint made a chosen colour
+  look like nothing happened ("I can't change a child's colour", 2026-10-20).
 - **Static files get fixed content types** (`server/api.py::TYPES`): Windows' registry
   sometimes says `.js` is `text/plain`, and a browser refuses to run a module served so.
 - **`GET /api/update` exists twice**: inside the Kanban, `kanban.py` answers it (the

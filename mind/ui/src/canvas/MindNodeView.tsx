@@ -1,7 +1,8 @@
 import { Handle, NodeToolbar, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
 import { CalendarClock, CircleHelp, Flag, Hourglass, Link2, Lock, Plus, Split, StickyNote, Trash2, Workflow } from "lucide-react";
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { C, PALETTE, STATUS, STATUS_ORDER, type StatusId } from "../constants";
+import { C, STATUS, STATUS_ORDER, SWATCHES, type StatusId } from "../constants";
+import { fillOf } from "../core/colors";
 import * as cmd from "../core/commands";
 import type { Progress } from "../core/progress";
 import { sizeOf, useApp } from "../store/app";
@@ -57,14 +58,18 @@ function MindNodeView({ data, selected }: NodeProps & { data: NodeData }) {
   };
   const toggle = onToggle ?? (() => useApp.getState().apply((m) => cmd.toggleDone(m, [node.id]), { arrange: false, select: false }));
   const question = node.kind === "condition";
-  const cls = ["mn", isRoot && "root", node.status === "done" && "done", selected && "sel", linking && "linking",
+  // A node with a colour of its own is filled with it; text picks dark or light to stay readable.
+  const fill = node.color ? fillOf(node.color) : null;
+  const style: Record<string, string> = { "--branch": branch ?? "var(--accent)" };
+  if (fill) Object.assign(style, { "--rootA": fill.a, "--rootB": fill.b, "--rootText": fill.ink });
+  const cls = ["mn", isRoot && "root", fill && "filled", node.status === "done" && "done", selected && "sel", linking && "linking",
                question && "question", plan?.inactive && "inactive", plan?.critical && "critical",
                (plan?.wait || plan?.undecided) && "waiting"].filter(Boolean).join(" ");
   const showRing = progress.total >= C.ui.ring_min_tasks;
   const label = STATUS[node.status].label;
 
   return (
-    <div className={cls} style={{ ["--branch" as string]: branch ?? "var(--accent)" }}
+    <div className={cls} style={style}
          data-testid="mind-node" data-node-id={node.id} data-status={node.status}
          onPointerDownCapture={press}
          onMouseEnter={() => { inside.current = true; setHot(true); }}
@@ -83,7 +88,7 @@ function MindNodeView({ data, selected }: NodeProps & { data: NodeData }) {
         <button className="mn-status nodrag" onClick={toggle} onDoubleClick={(e) => e.stopPropagation()}
                 title={readOnly && !onToggle ? label : `${label} — click or Space to ${node.status === "done" ? "reopen" : "mark done"}`}
                 aria-label={`Status: ${label}. Toggle done.`}>
-          <StatusGlyph status={node.status} onRoot={isRoot} />
+          <StatusGlyph status={node.status} onRoot={isRoot || !!fill} />
         </button>
       )}
 
@@ -95,7 +100,7 @@ function MindNodeView({ data, selected }: NodeProps & { data: NodeData }) {
       </div>
 
       {showRing && <ProgressRing done={progress.done} total={progress.total}
-                                 size={isRoot ? 42 : 30} onRoot={isRoot} />}
+                                 size={isRoot ? 42 : 30} onRoot={isRoot || !!fill} />}
 
       <NodeToolbar isVisible={bar && !editing} position={Position.Top} offset={12}>
         {doneBar ?? (readOnly ? null : <NodeBar node={node} />)}
@@ -215,8 +220,6 @@ function Editor({ node, seed, isRoot }: { node: MindNode; seed: string | null; i
 function NodeBar({ node }: { node: MindNode }) {
   const [colors, setColors] = useState(false);
   const store = useApp.getState;
-  const run = (fn: (m: Parameters<typeof cmd.setStatus>[0]) => cmd.Result, arrange = false) =>
-    store().apply(fn, { arrange, select: false });
 
   return (
     <div className="glass bar fade-in nodrag" role="toolbar" aria-label="Node actions"
@@ -238,21 +241,7 @@ function NodeBar({ node }: { node: MindNode }) {
                          background: node.color ?? "conic-gradient(from 0deg, #6366F1, #14B8A6, #F59E0B, #F43F5E, #A855F7, #6366F1)",
                          boxShadow: "0 0 0 2px var(--surface)" }} />
         </button>
-        {colors && (
-          <div className="glass fade-in" style={{ position: "absolute", top: 36, left: -8, padding: 8,
-               borderRadius: 12, display: "grid", gridTemplateColumns: "repeat(5, 22px)", gap: 6, zIndex: 5 }}>
-            {PALETTE.map((c) => (
-              <button key={c} aria-label={`Colour ${c}`} title={c}
-                      onClick={() => { run((m) => cmd.setColor(m, [node.id], c)); setColors(false); }}
-                      style={{ width: 22, height: 22, borderRadius: 999, background: c, cursor: "pointer",
-                               border: node.color === c ? "2px solid var(--text)" : "2px solid transparent" }} />
-            ))}
-            <button aria-label="Inherit the branch colour" title="Inherit the branch colour"
-                    onClick={() => { run((m) => cmd.setColor(m, [node.id], null)); setColors(false); }}
-                    style={{ width: 22, height: 22, borderRadius: 999, cursor: "pointer", color: "var(--textMuted)",
-                             background: "var(--bg)", border: "1px dashed var(--border)", fontSize: 11 }}>∅</button>
-          </div>
-        )}
+        {colors && <ColorPicker node={node} onDone={() => setColors(false)} />}
       </div>
       <button className="icon-btn sm" title="Add child (Tab)" aria-label="Add child"
               onClick={() => store().apply((m) => cmd.addChild(m, node.id, "", sizeOf), { edit: true })}>
@@ -278,6 +267,49 @@ function NodeBar({ node }: { node: MindNode }) {
               }}>
         <Trash2 size={16} />
       </button>
+    </div>
+  );
+}
+
+/**
+ * Fifteen colours, any other colour, or back to the branch colour. With several
+ * nodes selected, the colour goes to all of them.
+ */
+function ColorPicker({ node, onDone }: { node: MindNode; onDone: () => void }) {
+  const custom = useRef<HTMLInputElement>(null);
+  const paint = (color: string | null) => {
+    const s = useApp.getState();
+    const ids = s.selectedNodes.includes(node.id) ? s.selectedNodes : [node.id];
+    s.apply((m) => cmd.setColor(m, ids, color), { arrange: false, select: false });
+  };
+  // The system picker reports every step of a drag; take the colour once it is chosen.
+  useEffect(() => {
+    const el = custom.current!;
+    const chosen = () => { paint(el.value.toUpperCase()); onDone(); };
+    el.addEventListener("change", chosen);
+    return () => el.removeEventListener("change", chosen);
+  });
+  const swatch = { width: 24, height: 24, borderRadius: 999, cursor: "pointer" } as const;
+  return (
+    <div className="glass fade-in" data-testid="color-picker" role="group" aria-label="Node colour"
+         style={{ position: "absolute", top: 36, left: -8, padding: 10, borderRadius: 14, zIndex: 5,
+                  display: "grid", gridTemplateColumns: "repeat(5, 24px)", gap: 7 }}>
+      {SWATCHES.map((c) => (
+        <button key={c} aria-label={`Colour ${c}`} title={c} aria-pressed={node.color === c}
+                onClick={() => { paint(c); onDone(); }}
+                style={{ ...swatch, background: c,
+                         boxShadow: node.color === c ? "0 0 0 2px var(--surface), 0 0 0 4px var(--text)" : "none" }} />
+      ))}
+      <label title="Any colour…" aria-label="Pick any colour" data-testid="color-custom"
+             style={{ ...swatch, position: "relative", overflow: "hidden",
+                      background: "conic-gradient(from 0deg, #F43F5E, #F59E0B, #84CC16, #06B6D4, #6366F1, #D946EF, #F43F5E)" }}>
+        <input ref={custom} type="color" defaultValue={node.color ?? SWATCHES[10]}
+               style={{ position: "absolute", inset: 0, opacity: 0, cursor: "pointer" }} />
+      </label>
+      <button aria-label="Inherit the branch colour" title="No colour of its own: take the branch colour"
+              onClick={() => { paint(null); onDone(); }} data-testid="color-none"
+              style={{ ...swatch, color: "var(--textMuted)", background: "var(--bg)",
+                       border: "1px dashed var(--border)", fontSize: 12 }}>∅</button>
     </div>
   );
 }

@@ -134,8 +134,10 @@ Nodes you drag stay there, remembered in the map (switch off in Settings).
 **Themes.** Ten, five dark (Midnight, Aurora, Sunset, Ocean, Forest) and five light
 (Daylight, Blossom, Mint, Sky, Citrus), each with its own background glow and its own
 branch colours, so a map changes colour with the theme. *Colourful nodes* (on by
-default) tints every node with its branch colour. Every theme is checked for
-readable contrast by the tests.
+default) tints every node with its branch colour. A node given a **colour of its own**
+(the colour dot in its toolbar: 15 colours, any other colour, or ∅ for the branch colour
+again) is filled with it, with dark or white text chosen for contrast; with several
+nodes selected, all of them take it. Every theme is checked for readable contrast by the tests.
 
 **Spacing** sets how far apart nodes sit: the gaps between levels and between
 siblings in 2D, the length of connections in 3D, and the gaps between columns and

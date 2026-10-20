@@ -1,5 +1,13 @@
 {
   "_comment": "RULE 1: dark AND light, tinted neutrals, never plain grey. Colours appear nowhere else in the codebase -- the UI turns each block into CSS variables at runtime; tests/test_themes.py checks every block (all tokens, contrast, no grey, a colourful palette, a dark/light pair). q-<status> is the status palette (one hue per status: pill, ring, stats bar, 3D). 'palette' is the theme's branch colours: each main branch of a map takes the next one. 'pair' is the same theme's other side (T switches to it). _palette is the list of colours a node can be given by hand; it is theme-independent data.",
+  "_swatches_comment": "The colours offered for a node, 5 per row around the colour wheel; any other colour can be picked too. A node with its own colour is filled with it.",
+  "_swatches": [
+    "#F43F5E", "#EF4444", "#F97316", "#F59E0B", "#EAB308",
+    "#84CC16", "#22C55E", "#14B8A6", "#06B6D4", "#0EA5E9",
+    "#6366F1", "#8B5CF6", "#A855F7", "#D946EF", "#EC4899"
+  ],
+  "_ink_comment": "Text on a node filled with its own colour: whichever of the two reads better on it.",
+  "_ink": { "dark": "#0B0D1A", "light": "#FFFFFF" },
   "_palette": [
     "#6366F1",
     "#0EA5E9",
