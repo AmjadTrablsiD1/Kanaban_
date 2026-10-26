@@ -140,9 +140,10 @@ new idea, undo, redo, fit — and **More** for the rest. A node's toolbar sits w
 covers no other node, or under the top bar when there is no such place. *Classic*
 (*Settings → Look*) is the glass and boxes of 2.0, every tool in the dock.
 
-**Lighting** (*Settings → Look*): every node and connection gives off light in its branch
-colour — **Soft** (default), **Neon** or **Off**; light themes get a gentle coloured shadow
-instead. **Active colouring**: the branch you select or point at lights up with everything
+**Lighting** (*Settings → Look*): **Glow** (default) lights every node like the centre — filled
+with a two-tone gradient of its branch colour, with a halo of light; **Soft** and **Neon** keep
+the nodes plain and give them a lighter or stronger glow; **Off**. Lines glow along. Light
+themes get a gentle coloured shadow instead. Glow follows *Colourful nodes*: off, nodes stay plain. **Active colouring**: the branch you select or point at lights up with everything
 under it, tasks in *Doing* pulse gently, and done tasks lose their colour and light (their
 text stays readable). Each of the three has its own switch.
 

@@ -60,6 +60,9 @@
 - [x] 2026-10-24 Lighting (Off / Soft / Neon, in the branch colour; a shadow in light themes) and
       active colouring: the selected or pointed-at branch lights up, doing tasks pulse, done fades
 
+- [x] 2026-10-26 Glow lighting (default): every node lit like the centre, a two-tone fill of its
+      branch colour with a halo; text checked >= 4.5:1 over both ends for every theme colour
+
 ## Doing
 - [ ] Nothing in progress
 

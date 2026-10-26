@@ -64,3 +64,19 @@ export function fillOf(color: string): { ink: string; a: string; b: string } {
   const away = ink === INK.dark ? 255 : 0;
   return { ink, a: mix(color, away, 0.06), b: mix(color, away, 0.24) };
 }
+
+/**
+ * "Glow" lighting: a node lit like the centre. A two-tone fill from its branch colour to the
+ * next colour of the palette, and a text colour that reads over *both* ends -- if neither
+ * dark nor white reaches 4.5:1 on both, the two ends are moved away from the text until it does.
+ */
+export function glowFill(branch: string, palette: string[]): { ink: string; a: string; b: string } {
+  const i = palette.findIndex((p) => p.toLowerCase() === branch.toLowerCase());
+  let a = branch.toUpperCase();
+  let b = i >= 0 ? palette[(i + 1) % palette.length].toUpperCase() : mix(a, 255, 0.25);
+  const worst = (ink: string) => Math.min(contrast(a, ink), contrast(b, ink));
+  const ink = worst(INK.light) >= worst(INK.dark) ? INK.light : INK.dark;
+  const away = ink === INK.dark ? 255 : 0;
+  for (let k = 0; k < 12 && worst(ink) < 4.5; k++) { a = mix(a, away, 0.08); b = mix(b, away, 0.08); }
+  return { ink, a, b };
+}

@@ -582,7 +582,8 @@ test("6b · themes: ten of them, each readable; T flips dark/light, ⇧T steps o
   expect(await branchOf()).not.toBe(inOcean);
 
   // Colourful nodes: tinted by their branch; off gives plain glass again.
-  const bg = () => node(page, "Port editor").locator(".mn").evaluate((el) => getComputedStyle(el).backgroundColor);
+  const bg = () => node(page, "Port editor").locator(".mn").evaluate((el) =>
+    getComputedStyle(el).backgroundColor + " " + getComputedStyle(el).backgroundImage);   // a tint, or the Glow gradient
   const tinted = await bg();
   await page.getByTestId("settings-open").click();
   await page.getByTestId("set-colorful").locator("..").click();

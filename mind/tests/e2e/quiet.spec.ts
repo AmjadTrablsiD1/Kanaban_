@@ -86,7 +86,10 @@ test("Q1 · Quiet is the look: six tools and More, plain top bar, readable in bo
   }
   await page.keyboard.press("t");
 
-  // nodes are text on a line in their branch colour -- no box, still tinted
+  // with Soft lighting, nodes are text on a line in their branch colour -- no box, still tinted
+  await page.getByTestId("settings-open").click();
+  await page.getByTestId("lighting-soft").click();
+  await page.keyboard.press("Escape");
   const look = await node(page, "a1").locator(".mn").evaluate((el) => {
     const cs = getComputedStyle(el);
     return { bottom: cs.borderBottomWidth, top: cs.borderTopColor, bg: cs.backgroundColor };
@@ -337,7 +340,8 @@ test("Q10 · two PCs: export, import (nothing doubles), a change from the other 
   await expect(page.getByTestId("data-dir")).toHaveText(DATA);
 });
 
-test("Q11 · lighting: soft by default, neon, off; my branch lights up; doing glows; done fades", async ({ page }) => {
+test("Q11 · lighting: glow by default, soft, neon, off; my branch lights up; doing glows; done fades", async ({ page }) => {
+  await page.request.delete("/api/settings");                     // the defaults, as a fresh install has them
   await planMap(page, (m) => {
     for (const n of m.nodes) {
       if (n.text === "a1") n.status = "doing";
@@ -350,8 +354,33 @@ test("Q11 · lighting: soft by default, neon, off; my branch lights up; doing gl
   const glow = (t: string) => node(page, t).locator(".mn").evaluate((el) => getComputedStyle(el, "::after").boxShadow);
   const edgeGlow = () => page.locator(".kb-edge").first().evaluate((el) => getComputedStyle(el).filter);
 
-  // soft, out of the box: every node and line gives off light in its branch colour
-  expect(await glow("a2")).toContain("18px");
+  // Glow, out of the box: every node lit like the centre, filled with its branch colour, with a halo
+  await expect(node(page, "a2").locator(".mn")).toHaveClass(/glowfill/);
+  await expect(node(page, "b2").locator(".mn")).toHaveClass(/glowfill/);
+  const fillOf = (t: string) => node(page, t).locator(".mn").evaluate((el) => getComputedStyle(el).backgroundImage);
+  expect(await fillOf("a2")).toContain("linear-gradient");
+  expect(await fillOf("a2")).not.toBe(await fillOf("b2"));              // each branch its own colours
+  expect(await glow("a2")).toContain("44px");
+  // a node with a colour of its own glows the same way, in its own colour
+  await select(page, "a3");
+  await page.getByRole("toolbar", { name: "Node actions" }).getByRole("button", { name: "Colour", exact: true }).click();
+  await page.getByTestId("color-picker").getByRole("button", { name: "Colour #F43F5E" }).click();
+  await page.keyboard.press("Escape");
+  await expect(node(page, "a3").locator(".mn")).toHaveClass(/filled/);
+  await expect.poll(() => glow("a3")).toContain("44px");
+  await page.screenshot({ path: shot("q11-glow") });
+  // the centre-like look is only for colourful maps: Colourful off gives plain nodes again
+  await page.getByTestId("settings-open").click();
+  await page.getByTestId("set-colorful").locator("..").click();
+  await page.keyboard.press("Escape");
+  await expect(node(page, "a2").locator(".mn")).not.toHaveClass(/glowfill/);
+  await page.getByTestId("settings-open").click();
+  await page.getByTestId("set-colorful").locator("..").click();
+  await page.getByTestId("lighting-soft").click();
+  await page.keyboard.press("Escape");
+
+  // soft: every node and line gives off a softer light in its branch colour
+  await expect.poll(() => glow("a2")).toContain("18px");
   expect(await edgeGlow()).toContain("drop-shadow");
   await page.screenshot({ path: shot("q11-soft") });
 
@@ -403,6 +432,9 @@ test("Q11 · lighting: soft by default, neon, off; my branch lights up; doing gl
   await page.getByTestId("settings-open").click();
   await page.getByTestId("theme-midnight").click();
   await page.keyboard.press("Escape");
+  await page.getByTestId("settings-open").click();
+  await page.getByTestId("lighting-glow").click();
+  await page.keyboard.press("Escape");
   st = await saved(page);
-  expect(st.settings.lighting).toBe("soft");
+  expect(st.settings.lighting).toBe("glow");
 });

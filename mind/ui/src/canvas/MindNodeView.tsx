@@ -3,7 +3,8 @@ import { CalendarClock, ChevronsDownUp, CircleHelp, Flag, Hourglass, Link2, Lock
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { C, STATUS, STATUS_ORDER, SWATCHES, type StatusId } from "../constants";
-import { fillOf } from "../core/colors";
+import { fillOf, glowFill } from "../core/colors";
+import { paletteOf } from "../theme";
 import * as cmd from "../core/commands";
 import type { Progress } from "../core/progress";
 import { sizeOf, useApp } from "../store/app";
@@ -65,10 +66,15 @@ function MindNodeView({ data, selected }: NodeProps & { data: NodeData }) {
   const toggle = onToggle ?? (() => useApp.getState().apply((m) => cmd.toggleDone(m, [node.id]), { arrange: false, select: false }));
   const question = node.kind === "condition";
   // A node with a colour of its own is filled with it; text picks dark or light to stay readable.
-  const fill = node.color ? fillOf(node.color) : null;
+  // With "Glow" lighting (and colourful nodes) every node is lit like the centre, in its branch colour.
+  const glowOn = useApp((s) => s.settings.lighting === "glow" && s.settings.colorful);
+  const theme = useApp((s) => s.settings.theme);
+  const glowing = !node.color && !isRoot && glowOn;
+  const fill = node.color ? fillOf(node.color)
+    : glowing ? glowFill(branch && branch.startsWith("#") ? branch : paletteOf(theme)[0], paletteOf(theme)) : null;
   const style: Record<string, string> = { "--branch": branch ?? "var(--accent)" };
   if (fill) Object.assign(style, { "--rootA": fill.a, "--rootB": fill.b, "--rootText": fill.ink });
-  const cls = ["mn", isRoot && "root", fill && "filled", node.status === "done" && "done", selected && "sel", linking && "linking",
+  const cls = ["mn", isRoot && "root", fill && (glowing ? "glowfill" : "filled"), node.status === "done" && "done", selected && "sel", linking && "linking",
                question && "question", plan?.inactive && "inactive", plan?.critical && "critical",
                (plan?.wait || plan?.undecided) && "waiting", dim && "dim", drop && "drop", glow && "lit"].filter(Boolean).join(" ");
   const showRing = progress.total >= C.ui.ring_min_tasks;

@@ -1,5 +1,5 @@
 {
-  "version": "2.1.0",
-  "date": "2026-10-24",
-  "notes": "A quieter Kanaban Mind, same colours, now with light: nodes and lines glow in their branch colour (Soft, Neon or Off), your branch lights up, doing tasks glow, done fades. Six tools in the dock and More for the rest, toolbars that never cover a node. New: fold branches (.), Zen (Z) and Focus (Shift+F), drag a node onto another to move it, an outline view (O), quick capture to an Inbox (I), a Timeline of due dates (W), a limit on doing, and your maps on both PCs (export / import, or a synced folder). The classic board is now read-only; Settings can allow editing."
+  "version": "2.1.1",
+  "date": "2026-10-26",
+  "notes": "Glow: every node is now lit like the centre node, filled with its branch colour and surrounded by a halo of light (Settings -> Look -> Lighting: Glow, Soft, Neon or Off)."
 }

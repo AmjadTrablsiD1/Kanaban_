@@ -110,8 +110,8 @@ button { font: inherit; color: inherit; }
   background: var(--branch); box-shadow: 0 0 10px var(--branch); opacity: .95;
 }
 /* colourful nodes: each node takes a soft tint of its branch colour */
-.colorful .mn:not(.root):not(.filled) { background: color-mix(in srgb, var(--branch) 16%, var(--glass)); }
-.colorful .mn:not(.root):not(.filled):not(.sel) { border-color: color-mix(in srgb, var(--branch) 38%, var(--nodeBorder)); }
+.colorful .mn:not(.root):not(.filled):not(.glowfill) { background: color-mix(in srgb, var(--branch) 16%, var(--glass)); }
+.colorful .mn:not(.root):not(.filled):not(.glowfill):not(.sel) { border-color: color-mix(in srgb, var(--branch) 38%, var(--nodeBorder)); }
 .mn:hover { border-color: color-mix(in srgb, var(--branch) 45%, var(--nodeBorder)); transform: translateY(-1px); }
 .mn.sel {
   border-color: var(--nodeSelected);
@@ -127,24 +127,24 @@ button { font: inherit; color: inherit; }
 }
 .mn.root::before { display: none; }
 /* a node with a colour of its own: filled with it, like a root; the text colour is chosen for contrast */
-.mn.filled {
+.mn:is(.filled, .glowfill) {
   border-color: transparent;
   background: linear-gradient(135deg, var(--rootA), var(--rootB));
   color: var(--rootText);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 8px 24px color-mix(in srgb, var(--rootA) 38%, transparent);
 }
-.mn.filled::before { display: none; }
-.mn.filled:hover { border-color: transparent; }
-.mn.filled.sel {
+.mn:is(.filled, .glowfill)::before { display: none; }
+.mn:is(.filled, .glowfill):hover { border-color: transparent; }
+.mn:is(.filled, .glowfill).sel {
   border-color: var(--nodeSelected);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--nodeSelected) 45%, transparent),
               0 10px 30px color-mix(in srgb, var(--rootA) 45%, transparent);
 }
-.mn.filled .mn-text { color: var(--rootText); }
-.mn.filled .mn-note { color: color-mix(in srgb, var(--rootText) 82%, transparent); }
-.mn.filled .mn-edit { color: var(--rootText); caret-color: var(--rootText); }
-.mn.filled .mn-edit::placeholder { color: color-mix(in srgb, var(--rootText) 60%, transparent); }
-.mn.filled.done:not(.root) .mn-text {
+.mn:is(.filled, .glowfill) .mn-text { color: var(--rootText); }
+.mn:is(.filled, .glowfill) .mn-note { color: color-mix(in srgb, var(--rootText) 82%, transparent); }
+.mn:is(.filled, .glowfill) .mn-edit { color: var(--rootText); caret-color: var(--rootText); }
+.mn:is(.filled, .glowfill) .mn-edit::placeholder { color: color-mix(in srgb, var(--rootText) 60%, transparent); }
+.mn:is(.filled, .glowfill).done:not(.root) .mn-text {
   color: color-mix(in srgb, var(--rootText) 86%, transparent);
   text-decoration-color: var(--rootText);
 }
@@ -361,14 +361,14 @@ button.board-empty { cursor: pointer; }
 .look-quiet [data-chrome="side"] [role="progressbar"] { height: 2px; }
 .look-quiet .react-flow__minimap { background: var(--surface); }
 
-.app.look-quiet .stage .mn:not(.root):not(.filled) {
+.app.look-quiet .stage .mn:not(.root):not(.filled):not(.glowfill) {
   background: transparent; border-color: transparent; box-shadow: none;
   border-radius: 9px 9px 3px 3px; border-bottom: 2px solid var(--branch);
 }
 .app.look-quiet .stage .mn:not(.root)::before { display: none; }
-.app.look-quiet .stage.colorful .mn:not(.root):not(.filled) { background: color-mix(in srgb, var(--branch) 13%, transparent); }
-.app.look-quiet .stage .mn:not(.root):not(.filled):hover { border-color: transparent; border-bottom-color: var(--branch); }
-.app.look-quiet .stage .mn:not(.root):not(.filled).sel {
+.app.look-quiet .stage.colorful .mn:not(.root):not(.filled):not(.glowfill) { background: color-mix(in srgb, var(--branch) 13%, transparent); }
+.app.look-quiet .stage .mn:not(.root):not(.filled):not(.glowfill):hover { border-color: transparent; border-bottom-color: var(--branch); }
+.app.look-quiet .stage .mn:not(.root):not(.filled):not(.glowfill).sel {
   border-color: var(--nodeSelected); border-bottom-color: var(--branch);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--nodeSelected) 30%, transparent);
 }
@@ -470,7 +470,7 @@ span.outline-fold { cursor: default; }
 [data-scheme="dark"] .light-neon .mn:not(.root)::after {
   box-shadow: 0 0 10px color-mix(in srgb, var(--branch) 55%, transparent), 0 0 34px color-mix(in srgb, var(--branch) 38%, transparent);
 }
-[data-scheme="dark"] .light-neon .mn:not(.root):not(.filled) { border-color: color-mix(in srgb, var(--branch) 55%, transparent); }
+[data-scheme="dark"] .light-neon .mn:not(.root):not(.filled):not(.glowfill) { border-color: color-mix(in srgb, var(--branch) 55%, transparent); }
 [data-scheme="light"] .light-soft .mn:not(.root)::after { box-shadow: 0 4px 14px color-mix(in srgb, var(--branch) 18%, transparent); }
 [data-scheme="light"] .light-neon .mn:not(.root)::after { box-shadow: 0 6px 20px color-mix(in srgb, var(--branch) 30%, transparent); }
 [data-scheme="dark"] .light-soft .kb-edge { filter: drop-shadow(0 0 3px var(--edgeGlow, var(--accent))); }
@@ -502,8 +502,19 @@ span.outline-fold { cursor: default; }
 /* done fades: finished work loses its colour and light, so the open work keeps it */
 /* colour and light go, the words stay readable (no opacity on the text) */
 .done-fades .mn.done:not(.root):not(.lit) { filter: saturate(.12); }
-.app .stage.done-fades .mn.done:not(.root):not(.lit):not(.filled) {
+.app .stage.done-fades .mn.done:not(.root):not(.lit):not(.filled):not(.glowfill) {
   background: transparent; border-bottom-color: color-mix(in srgb, var(--branch) 30%, transparent);
 }
 .done-fades .mn.done:not(.root):not(.lit)::after { box-shadow: none !important; animation: none !important; }
 .done-fades .kb-edge.to-done:not(.lit) { opacity: .35; filter: none !important; }
+
+/* Glow: every node lit like the centre -- a two-tone fill from its branch colour to the next
+   one of the palette, and a wide halo of that light (a soft coloured shadow in light themes) */
+/* ...and a node you coloured yourself gets the same halo, in its own colour */
+.mn.glowfill::after, .light-glow .mn.filled:not(.root)::after {
+  box-shadow: 0 14px 44px color-mix(in srgb, var(--rootA) 45%, transparent),
+              0 0 72px color-mix(in srgb, var(--rootB) 22%, transparent);
+}
+[data-scheme="light"] .mn.glowfill::after,
+[data-scheme="light"] .light-glow .mn.filled:not(.root)::after { box-shadow: 0 8px 24px color-mix(in srgb, var(--rootA) 32%, transparent); }
+[data-scheme="dark"] .light-glow .kb-edge { filter: drop-shadow(0 0 4px var(--edgeGlow, var(--accent))); }

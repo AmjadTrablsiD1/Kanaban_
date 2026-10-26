@@ -3,7 +3,7 @@
   "app": {
     "id": "kanaban-mind",
     "name": "Kanaban Mind",
-    "version": "2.1.0",
+    "version": "2.1.1",
     "icon": "🧠",
     "tagline": "Your Kanban, as a mind map"
   },
@@ -79,9 +79,10 @@
       }
     },
     "lighting": {
-      "order": ["off", "soft", "neon"],
+      "order": ["off", "soft", "neon", "glow"],
       "items": {
         "off": { "label": "Off", "hint": "No light: flat nodes and lines." },
+        "glow": { "label": "Glow", "hint": "Every node lit like the centre: filled with its branch colour, with a halo of light." },
         "soft": { "label": "Soft", "hint": "Each node and line gives off a soft light in its branch colour (a gentle shadow in light themes)." },
         "neon": { "label": "Neon", "hint": "Strong light, best in a dark theme." }
       }
@@ -127,7 +128,7 @@
     "poll_s": 5,
     "conflict_suffix": " (other PC, {stamp})"
   },
-  "settings_defaults": {"theme": "midnight", "saveOnExit": true, "sidebarOpen": true, "snapToGrid": false, "showNotes": true, "view": "2d", "autoArrange": true, "compact": false, "hideDone": false, "colorful": true, "spacing": "normal", "depMode": "warn", "criticalBy": "estimate", "showCritical": false, "layout3d": "cone", "labels3d": "smart", "remember3d": true, "look": "quiet", "minimapMode": "auto", "doingLimit": 3, "doingMode": "off", "classicEditable": false, "lighting": "soft", "activeBranch": true, "doingGlow": true, "doneFades": true},
+  "settings_defaults": {"theme": "midnight", "saveOnExit": true, "sidebarOpen": true, "snapToGrid": false, "showNotes": true, "view": "2d", "autoArrange": true, "compact": false, "hideDone": false, "colorful": true, "spacing": "normal", "depMode": "warn", "criticalBy": "estimate", "showCritical": false, "layout3d": "cone", "labels3d": "smart", "remember3d": true, "look": "quiet", "minimapMode": "auto", "doingLimit": 3, "doingMode": "off", "classicEditable": false, "lighting": "glow", "activeBranch": true, "doingGlow": true, "doneFades": true},
   "statuses": {
     "_comment": "A registry: add a status here plus its q-<id> colour in themes.json, nothing else. counts_as: null = not a task (ideas), 'open' or 'done' for progress.",
     "order": [

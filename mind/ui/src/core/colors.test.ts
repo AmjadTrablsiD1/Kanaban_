@@ -33,3 +33,25 @@ describe("colour contrast", () => {
     }
   });
 });
+
+describe("glow fill (every node lit like the centre)", () => {
+  it("every branch colour of every theme: text reads over both ends of its gradient", async () => {
+    const { THEMES } = await import("../theme");
+    const { glowFill } = await import("./colors");
+    for (const [name, t] of Object.entries(THEMES)) {
+      for (const c of t.palette) {
+        const f = glowFill(c, t.palette);
+        expect(Math.min(contrast(f.a, f.ink), contrast(f.b, f.ink)), `${name} ${c}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+  it("runs from the branch colour to the next one of the palette; a colour off the palette still gets two tones", async () => {
+    const { glowFill } = await import("./colors");
+    const pal = ["#1E3A8A", "#7F1D1D", "#14532D"];
+    const f = glowFill("#1E3A8A", pal);
+    expect([f.a, f.b]).toEqual(["#1E3A8A", "#7F1D1D"]);          // dark enough for white text as they are
+    expect(f.ink).toBe("#FFFFFF");
+    const off = glowFill("#14532D", ["#000000"]);
+    expect(off.a).not.toBe(off.b);
+  });
+});
